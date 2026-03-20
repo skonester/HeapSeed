@@ -47,8 +47,8 @@ html {
 }
 
 body {
-    color: #000000;
-    color-scheme: light;
+    color-scheme: dark;
+    color: #FFFFFF;
     display: flex;
     flex-direction: column;
     height: 100vh;
@@ -58,38 +58,17 @@ body {
     
     /* Added background image styles */
     background-image: url('./icon.png');
-       background-size: 35%;
+    background-size: 25%;
     background-position: center;
     background-repeat: no-repeat;
     background-color: #000000; /* fallback if image fails */
     
-    --red: #D32F2F;
-    --yellow: #FBC02D;
-    --green: #388E3C;
-    --blue: #1976D2;
-    --purple: #7B1FA2;
-    --card-background: #FFFFFF;
-    --main-background: transparent; /* Changed from #FFFFFF so background image shows */
-    --foreground: #000000;
-}
-
-body.dark {
-    color: #FFFFFF;
-    color-scheme: dark;
-     background-image: url('./icon.png');
-       background-size: 35%;
     --red: #EF9A9A;
     --yellow: #FFF59D;
     --green: #A5D6A7;
     --blue: #90CAF9;
     --purple: #CE93D8;
     --card-background: #404040;
-    --main-background: transparent; /* Updated to show background image in dark mode */
-    --foreground: #FFFFFF;
-}
-
-body.dark.win32 {
-    --card-background: #303030;
     --main-background: transparent;
     --foreground: #FFFFFF;
 }

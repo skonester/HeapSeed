@@ -6,11 +6,12 @@ const path = require('path')
 const soundPlay = require('sound-play')
 const http = require('http') // Native HTTP module added here
 const VERSION_CODE = 11;
+const axios = require('axios'); // You might need to run: npm install axios
 
 const sintel = 'magnet:?xt=urn:btih:08ada5a7a6183aae1e09d831df6748d566095a10&dn=Sintel&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2F&xs=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2Fsintel.torrent'
 const sampleItems = [sintel]
 
-const build_date = '2024.12.14'
+const build_date = '2026.3.19'
 
 // Global State Registry
 let webTorrentClient, moveToTrash
@@ -55,7 +56,7 @@ app.whenReady().then(() => Promise.all([import('webtorrent'), import('trash')]))
     } else {
         settings = {
             'appearance': 'system',
-            'download_path': path.join(app.getPath('downloads'), 'Heapseed'),
+            'download_path': path.join(app.getPath('downloads'), 'HeapSeed'),
             'last_cfu': 0,
             'new_version': {
                 vc: VERSION_CODE,
@@ -198,37 +199,69 @@ mainWindow.on('close', (e) => {
  * =========================================================
  */
 
-ipcMain.on('add-torrent', (e, torrentId) => {
+ipcMain.on('add-torrent', async (e, rawId) => {
     try {
-        console.log('[IPC] Adding:', torrentId)
-        if (!webTorrentClient) return
+        let torrentId = rawId ? rawId.trim() : '';
+        if (!webTorrentClient || !torrentId) return;
 
-        const existing = webTorrentClient.get(torrentId)
-        if (existing) {
-            console.warn('[Engine] Torrent already active.')
-            return
+        console.log('[IPC] Adding:', torrentId);
+
+        // --- STEP 1: FIX FOR THE 0x3a ERROR ---
+        // If it's a web URL, we download it to a Buffer so WebTorrent doesn't choke
+        if (torrentId.startsWith('http')) {
+            try {
+                const response = await axios.get(torrentId, { responseType: 'arraybuffer' });
+                torrentId = Buffer.from(response.data); 
+                console.log('[System] URL converted to Buffer successfully.');
+            } catch (fetchErr) {
+                console.error('[Fetch Error]:', fetchErr.message);
+                if (mainWindow) mainWindow.webContents.send('torrent-error', null, "Failed to download torrent file");
+                return;
+            }
         }
 
-        const torrent = webTorrentClient.add(torrentId, { path: settings['download_path'] })
+        // --- STEP 2: SEARCH FOR EXISTING ---
+        const existing = webTorrentClient.torrents.find(t => 
+            t.infoHash === torrentId || 
+            t.magnetURI === torrentId || 
+            (typeof torrentId === 'string' && webTorrentClient.get(torrentId)?.infoHash === t.infoHash)
+        );
+
+        if (existing) {
+            if (!existing.metadata) {
+                if (typeof existing.destroy === 'function') existing.destroy();
+                else webTorrentClient.remove(existing.infoHash);
+            } else {
+                console.warn('[Engine] Torrent already active.');
+                return;
+            }
+        }
+
+        // --- STEP 3: ADD AND LISTEN ---
+        const torrent = webTorrentClient.add(torrentId, { path: settings['download_path'] });
 
         torrent.on('metadata', () => {
-            console.log('[Engine] Metadata Resolved:', torrent.name)
-            onTorrent(torrent)
-        })
+            console.log('[Engine] Metadata Resolved:', torrent.name);
+            if (typeof onTorrent === 'function') onTorrent(torrent);
+        });
 
         torrent.on('error', (err) => {
-            console.error('[Torrent Error]:', err.message)
-            if (mainWindow) {
-                mainWindow.webContents.send('torrent-error', torrent.infoHash, err.message)
-            }
-        })
+            console.error('[Torrent Error]:', err.message);
+            if (typeof torrent.destroy === 'function') torrent.destroy();
+            if (mainWindow) mainWindow.webContents.send('torrent-error', torrent.infoHash, err.message);
+        });
 
-        mainWindow.webContents.send('adding-torrent')
+        if (mainWindow) {
+            mainWindow.webContents.send('adding-torrent', { 
+                infoHash: torrent.infoHash || 'loading',
+                name: 'Initializing...' 
+            });
+        }
+
     } catch (err) {
-        console.error('[IPC Failure] add-torrent:', err)
+        console.error('[IPC Failure] add-torrent:', err.message);
     }
-})
-
+});
 ipcMain.on('open-torrent', async (e, frontendData) => {
     try {
         const { magnetURI, url: fallbackUrl, infoHash } = frontendData;
