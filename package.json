@@ -1,0 +1,74 @@
+{
+  "name": "HeapSeed",
+  "productName": "HeapSeed",
+  "version": "1.0.0",
+  "description": "HeapSeed",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "electron .",
+    "pack-all": "npm run pack-mac && npm run pack-windows && npm run pack-linux && open dist/",
+    "pack-mac": "npx electron-builder -m --x64 --arm64",
+    "pack-linux": "npx electron-builder -l deb tar.xz --x64",
+    "pack-windows": "npx electron-builder -w nsis --x64",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "keywords": [
+    "magnet",
+    "torrent",
+    "webtorrent"
+  ],
+  "author": "Skonester",
+  "license": "ISC",
+  "build": {
+    "appId": "com.skonester.heapseed",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "asar": false,
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Skonester",
+        "repo": "HeapSeed"
+      }
+    ],
+    "mac": {
+      "notarize": false,
+      "icon": "build/icon.icns"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "artifactName": "${productName}-${version}-windows-${arch}.${ext}",
+      "icon": "build/icon.ico"
+    },
+    "linux": {
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "protocols": [
+      {
+        "name": "Magnet URL",
+        "schemes": [
+          "magnet"
+        ]
+      }
+    ]
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.3",
+    "plyr": "^3.8.4",
+    "sound-play": "^1.1.0",
+    "trash": "^10.1.1",
+    "webtorrent": "^2.8.5"
+  },
+  "devDependencies": {
+    "@electron/notarize": "^2.5.0",
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  }
+}

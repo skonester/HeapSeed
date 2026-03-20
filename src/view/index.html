@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HeapSeed Engine | Technical Interface</title>
+
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:* ws: wss:; img-src 'self' data:; media-src 'self' http://localhost:* blob:;">
+
+    <link rel="stylesheet" href="styles.css">
+    
+    <link rel="stylesheet" href="../../node_modules/plyr/dist/plyr.css">
+    <script src="../../node_modules/plyr/dist/plyr.polyfilled.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #121212;
+            --surface-color: #1e1e1e;
+            --primary-accent: #0078d4;
+            --text-main: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --border-subtle: #333333;
+            --status-downloading: #3498db;
+            --status-success: #2ecc71;
+            --status-warning: #f1c40f;
+            --status-error: #e74c3c;
+            --shadow-elevation: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        /* Technical UI State Management */
+        .hidden { display: none !important; }
+        .selected { background-color: rgba(0, 120, 215, 0.15); border-color: var(--primary-accent) !important; }
+        
+        /* State Indicators for Torrent Nodes */
+        li.error { border-left: 5px solid var(--status-error); }
+        li.downloaded { border-left: 5px solid var(--status-success); }
+        li.downloading { border-left: 5px solid var(--status-downloading); }
+        li.stopped { border-left: 5px solid var(--status-warning); }
+
+        body { 
+            font-family: 'Segoe UI', 'Consolas', monospace; 
+            margin: 0; 
+            padding: 0; 
+            background-color: var(--bg-color); 
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Header Component Architecture */
+        header.card {
+            display: flex;
+            align-items: center;
+            padding: 12px 18px;
+            background-color: var(--surface-color);
+            border-bottom: 1px solid var(--border-subtle);
+            gap: 12px;
+            z-index: 1000;
+            -webkit-app-region: drag; /* Electron native dragging support */
+        }
+
+        header button, header input {
+            -webkit-app-region: no-drag;
+        }
+
+        button.options {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        button.options:hover { background: rgba(255,255,255,0.1); }
+        
+        button.options svg { width: 20px; height: 20px; fill: var(--text-main); }
+
+        input#main-input {
+            flex-grow: 1;
+            padding: 10px 14px;
+            border: 1px solid var(--border-subtle);
+            border-radius: 6px;
+            outline: none;
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-main);
+            font-size: 14px;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        input#main-input:focus {
+            border-color: var(--primary-accent);
+            box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2);
+        }
+
+        /* Container for Dynamic Video Injection */
+        #video-container {
+            width: 100%;
+            background: #000;
+            border-bottom: 1px solid var(--border-subtle);
+            box-shadow: var(--shadow-elevation);
+        }
+
+        /* Main Content Scroll Area */
+        main {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 15px;
+        }
+
+        #message {
+            text-align: center;
+            color: var(--text-secondary);
+            margin-top: 50px;
+            font-size: 13px;
+        }
+
+        /* Torrent List Entry Styles */
+        ul#torrent-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        ul#torrent-list li {
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            cursor: default;
+            user-select: none;
+            transition: transform 0.1s, border-color 0.2s;
+        }
+
+        ul#torrent-list li:hover {
+            border-color: #444;
+        }
+
+        .torrent-info { display: flex; flex-direction: column; }
+        .torrent-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+        .torrent-meta { font-size: 12px; color: var(--text-secondary); white-space: pre-wrap; }
+        
+        .progress-bar-bg { height: 4px; background: #333; border-radius: 2px; width: 100%; }
+        .progress-bar-fill { height: 100%; background: var(--primary-accent); transition: width 0.3s ease-out; }
+
+    </style>
+</head>
+
+<body class="hidden">
+    <header class="card">
+        <button class="options hide-on-darwin" onclick="showAppOptionsMenu(this)" title="System Options">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m11.998 2c5.517 0 9.997 4.48 9.997 9.998 0 5.517-4.48 9.997-9.997 9.997-5.518 0-9.998-4.48-9.998-9.997 0-5.518 4.48-9.998 9.998-9.998zm0 1.5c-4.69 0-8.498 3.808-8.498 8.498s3.808 8.497 8.498 8.497 8.497-3.807 8.497-8.497-3.807-8.498-8.497-8.498zm2.502 8.495c0-.69.56-1.25 1.25-1.25s1.25.56 1.25 1.25-.56 1.25-1.25 1.25-1.25-.56-1.25-1.25zm-3.75 0c0-.69.56-1.25 1.25-1.25s1.25.56 1.25 1.25-.56 1.25-1.25 1.25-1.25-.56-1.25-1.25zm-3.75 0c0-.69.56-1.25 1.25-1.25s1.25.56 1.25 1.25-.56 1.25-1.25 1.25-1.25-.56-1.25-1.25z"/></svg>
+        </button>
+        
+        <button class="options hide-on-darwin hide-on-linux" onclick="openDownloadsFolder()" title="Open Target Directory">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="m6.864 3.424c.502-.301 1.136.063 1.136.642 0 .264-.138.509-.365.644-2.476 1.486-4.135 4.197-4.135 7.292 0 4.691 3.808 8.498 8.498 8.498s8.497-3.807 8.497-8.498c0-3.093-1.656-5.803-4.131-7.289-.225-.136-.364-.38-.364-.644 0-.582.635-.943 1.137-.642 2.91 1.748 4.858 4.936 4.858 8.575 0 5.519-4.479 9.998-9.997 9.998s-9.998-4.479-9.998-9.998c0-3.641 1.951-6.83 4.864-8.578zm.831 8.582s2.025 2.021 3.779 3.774c.147.147.339.22.53.22.192 0 .384-.073.531-.22 1.753-1.752 3.779-3.775 3.779-3.775.145-.145.217-.336.217-.526 0-.192-.074-.384-.221-.531-.292-.293-.766-.294-1.056-.004l-2.5 2.499v-10.693c0-.414-.336-.75-.75-.75s-.75.336-.75.75v10.693l-2.498-2.498c-.289-.289-.762-.286-1.054.006-.147.147-.221.339-.222.531 0 .19.071.38.215.524z"/></svg>
+        </button>
+
+        <input type="text" id="main-input" placeholder="Initiate transfer: magnet URI or .torrent URL...">
+
+        <button class="minimize hide-on-darwin hide-on-linux" onclick="minimize()" title="Minimize Window">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="m21 11.75c0-.414-.336-.75-.75-.75h-16.5c-.414 0-.75.336-.75.75s.336.75.75.75h16.5c.414 0 .75-.336.75-.75z"/></svg>
+        </button>
+        <button class="maximize hide-on-darwin hide-on-linux" onclick="maximize()" title="Maximize Window">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19.25,5.5c0,-0.414 -0.336,-0.75 -0.75,-0.75l-13,0c-0.414,0 -0.75,0.336 -0.75,0.75l0,13c0,0.414 0.336,0.75 0.75,0.75l13,0c0.414,0 0.75,-0.336 0.75,-0.75l0,-13Zm-1.5,0.75l0,11.5c-0,0 -11.5,0 -11.5,0c-0,-0 -0,-11.5 -0,-11.5l11.5,0Z"/></svg>
+        </button>
+        <button class="close hide-on-darwin hide-on-linux" onclick="closeWindow()" title="Terminate Process">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="m12 10.93 5.719-5.72c.146-.146.339-.219.531-.219.404 0 .75.324.75.749 0 .193-.073.385-.219.532l-5.72 5.719 5.719 5.719c.147.147.22.339.22.531 0 .427-.349.75-.75.75-.192 0-.385-.073-.531-.219l-5.719-5.719-5.719 5.719c-.146.146-.339.219-.531.219-.401 0-.75-.323-.75-.75 0-.192.073-.384.22-.531l5.719-5.719-5.72-5.719c-.146-.147-.219-.339-.219-.532 0-.425.346-.749.75-.749.192 0 .385.073.531.219z"/></svg>
+        </button>
+    </header>
+
+    <main>
+        <div id="video-container" class="hidden">
+            <video id="player" playsinline controls crossorigin></video>
+        </div>
+
+        <div id="message">Asynchronous state: Awaiting instruction...</div>
+        <ul id="torrent-list"></ul>
+    </main>
+
+    <script>
+/**
+         * ELECTRON BRIDGE: IPC RENDERER INITIALIZATION
+         */
+        const { ipcRenderer, clipboard } = require('electron');
+        let justSubmitted = false;
+
+        const searchBox = document.getElementById('main-input');
+        const messageDisplay = document.getElementById('message');
+        const torrentUl = document.getElementById('torrent-list');
+        
+        const BYTE_GB = 1073741824;
+        const BYTE_MB = 1048576;
+        const BYTE_KB = 1024;
+
+        let plyrInstance = null;
+
+        function formatDataSize(bytes) {
+            if (!bytes || bytes === 0) return '0.00 B';
+            if (bytes >= BYTE_GB) return (bytes / BYTE_GB).toFixed(2) + ' GiB';
+            if (bytes >= BYTE_MB) return (bytes / BYTE_MB).toFixed(2) + ' MiB';
+            if (bytes >= BYTE_KB) return (bytes / BYTE_KB).toFixed(2) + ' KiB';
+            return bytes + ' B';
+        }
+
+        function calculateTimeRemaining(ms) {
+            if (!ms || ms === Infinity) return '---';
+            try {
+                const date = new Date(ms);
+                const hrs = date.getUTCHours();
+                const mins = date.getUTCMinutes();
+                const secs = date.getUTCSeconds();
+                return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            } catch (err) {
+                return 'Synchronizing...';
+            }
+        }
+
+        // --- UNIFIED INPUT & PASTE HANDLER ---
+        function processInput() {
+            const rawBuffer = searchBox.value.trim();
+            const lowerBuffer = rawBuffer.toLowerCase();
+
+            const isMagnetURI = lowerBuffer.startsWith('magnet:');
+            const isWebTorrent = lowerBuffer.endsWith('.torrent') && lowerBuffer.startsWith('http');
+            const isLocalTorrent = lowerBuffer.endsWith('.torrent') && (lowerBuffer.includes(':\\') || lowerBuffer.startsWith('/'));
+            const isInfoHash = /^[0-9a-fA-F]{40}$/.test(rawBuffer);
+
+            if (isMagnetURI || isWebTorrent || isLocalTorrent || isInfoHash) {
+                console.log('[System] Valid Torrent Detected. Emitting IPC: add-torrent');
+                ipcRenderer.send('add-torrent', rawBuffer);
+                
+                searchBox.value = '';
+                searchBox.blur(); 
+                executeListFilter(''); // Reset the filter so the new torrent isn't hidden
+            } else {
+                executeListFilter(rawBuffer);
+            }
+        }
+
+        searchBox.addEventListener('input', processInput);
+
+        searchBox.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            const text = clipboard.readText().trim();
+            if (text) { searchBox.value = text; processInput(); }
+        });
+
+        searchBox.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+                e.preventDefault();
+                const text = clipboard.readText().trim();
+                if (text) { searchBox.value = text; processInput(); }
+            }
+        });
+
+        function executeListFilter(query) {
+            const sanitizedQuery = query.toLowerCase();
+            const listItems = torrentUl.querySelectorAll('li');
+            listItems.forEach(li => {
+                const nodeName = li.querySelector('.torrent-name').textContent.toLowerCase();
+                li.classList.toggle('hidden', !nodeName.includes(sanitizedQuery));
+            });
+        }
+
+        // --- WINDOW MANAGEMENT ---
+        function showAppOptionsMenu(triggerElement) {
+            const boundingBox = triggerElement.getBoundingClientRect();
+            ipcRenderer.send('show-app-options', { x: boundingBox.x, y: boundingBox.y });
+        }
+        function openDownloadsFolder() { ipcRenderer.send('open-downloads-folder'); }
+        function minimize() { ipcRenderer.send('minimize:main-window'); }
+        function maximize() { ipcRenderer.send('maximize:main-window'); }
+        function closeWindow() { ipcRenderer.send('close:main-window'); }
+
+        // --- IPC LISTENERS ---
+        ipcRenderer.on('platform', (event, osPlatform, isDarkMode) => {
+            document.body.classList.toggle('dark', isDarkMode);
+            document.body.classList.add(osPlatform);
+            document.body.classList.remove('hidden');
+        });
+
+        ipcRenderer.on('start-plyr-stream', (event, streamUrl, mimeType) => {
+            const wrapper = document.getElementById('video-container');
+            const mediaNode = document.getElementById('player');
+            wrapper.classList.remove('hidden');
+
+            if (!plyrInstance) {
+                plyrInstance = new Plyr(mediaNode, {
+                    controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'captions', 'settings', 'pip', 'fullscreen'],
+                    settings: ['quality', 'speed'],
+                    tooltips: { controls: true, seek: true },
+                    displayDuration: true
+                });
+            }
+
+            plyrInstance.source = {
+                type: 'video',
+                sources: [{ src: streamUrl, type: mimeType || 'video/mp4' }]
+            };
+            
+            plyrInstance.play().catch(error => console.error('[MediaEngine] Playback failed:', error.message));
+        });
+
+        ipcRenderer.on('remove-torrent', (event, infoHash) => {
+            const node = document.getElementById(`info-hash-${infoHash}`);
+            if (node) torrentUl.removeChild(node);
+        });
+
+        ipcRenderer.on('update-torrents', (event, activeTorrents) => {
+            if (activeTorrents.length === 0) {
+                torrentUl.innerHTML = '';
+                messageDisplay.classList.remove('hidden');
+                messageDisplay.innerHTML = 'Zero active peers. Dispatch a magnet URI to begin.';
+                return;
+            }
+            messageDisplay.classList.add('hidden');
+
+            activeTorrents.forEach(torrentData => {
+                let nodeElement = document.getElementById(`info-hash-${torrentData.infoHash}`);
+                
+                if (!nodeElement) {
+                    nodeElement = document.createElement('li');
+                    nodeElement.id = `info-hash-${torrentData.infoHash}`;
+                    nodeElement.className = 'card torrent downloading';
+                    nodeElement.innerHTML = `
+                        <div class="torrent-info">
+                            <span class="torrent-name">${torrentData.name || 'Resolving Metadata Pool...'}</span>
+                            <span class="torrent-meta">Handshaking with DHT...</span>
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill" style="width: 0%;"></div>
+                            </div>
+                        </div>`;
+
+                    nodeElement.oncontextmenu = (ev) => {
+                        nodeElement.classList.add('selected');
+                        ipcRenderer.send('show-torrent-options', torrentData, { x: ev.clientX, y: ev.clientY });
+                    };
+
+                    nodeElement.ondblclick = () => {
+                        ipcRenderer.send('open-torrent', torrentData);
+                    };
+
+                    torrentUl.prepend(nodeElement);
+                }
+
+                const metaText = nodeElement.querySelector('.torrent-meta');
+                const nameText = nodeElement.querySelector('.torrent-name');
+                const pBar = nodeElement.querySelector('.progress-bar-fill');
+
+                if (torrentData.name && nameText.textContent === 'Resolving Metadata Pool...') {
+                    nameText.textContent = torrentData.name;
+                }
+
+                const completionRatio = (torrentData.progress * 100).toFixed(1);
+                pBar.style.width = `${completionRatio}%`;
+
+                if (torrentData.error) {
+                    nodeElement.className = 'card torrent error';
+                    metaText.innerHTML = `Fatal Error: ${torrentData.error}`;
+                } else if (torrentData.done) {
+                    nodeElement.className = 'card torrent downloaded';
+                    metaText.innerHTML = `Status: Seed Complete | Payload: ${formatDataSize(torrentData.length)}`;
+                } else if (torrentData.paused) {
+                    nodeElement.className = 'card torrent stopped';
+                    metaText.innerHTML = `Status: Inactive | Progress: ${completionRatio}%`;
+                } else if (torrentData.ready) {
+                    nodeElement.className = 'card torrent downloading';
+                    metaText.innerHTML = `DL: ${formatDataSize(torrentData.downloadSpeed)}/s | Progress: ${completionRatio}% | ETR: ${calculateTimeRemaining(torrentData.timeRemaining)}`;
+                }
+            });
+        });
+
+        ipcRenderer.on('options-menu-closed', () => {
+            document.querySelectorAll('li.selected').forEach(node => node.classList.remove('selected'));
+        });
+
+        ipcRenderer.on('adding-torrent', () => {
+            messageDisplay.classList.remove('hidden');
+            messageDisplay.innerHTML = 'Connecting to peer swarm... Accessing piece map.';
+        });
+
+        // Listen for stream from main process
+// Listen for stream from main process
+ipcRenderer.on('start-plyr-stream', (event, streamUrl, mimeType) => {
+    console.log('[Plyr] Stream received:', streamUrl);
+    
+    // 1. Target the existing UI elements instead of creating new ones
+    const wrapper = document.getElementById('video-container');
+    const mediaNode = document.getElementById('player');
+    
+    // 2. Unhide the video container
+    wrapper.classList.remove('hidden');
+
+    // 3. Initialize the Plyr singleton if it hasn't been created yet
+    if (!plyrInstance) {
+        plyrInstance = new Plyr(mediaNode, {
+            controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'captions', 'settings', 'pip', 'fullscreen'],
+            settings: ['quality', 'speed'],
+            tooltips: { controls: true, seek: true },
+            displayDuration: true
+        });
+    }
+
+    // 4. Safely inject the new video source into the Plyr instance
+    plyrInstance.source = {
+        type: 'video',
+        sources: [{
+            src: streamUrl,
+            type: mimeType || 'video/mp4'
+        }]
+    };
+    
+    // 5. Autoplay and catch potential browser autoplay block errors
+    plyrInstance.play().catch(error => {
+        console.error('[MediaEngine] Playback failed:', error.message);
+    });
+});
+function initPlyr(streamUrl, mimeType) {
+    const playerEl = document.getElementById('player');
+    const player = new Plyr(playerEl);
+    
+    player.source = {
+        type: 'video',
+        sources: [{
+            src: streamUrl,
+            type: mimeType || 'video/mp4'
+        }]
+    };
+    
+    player.play();
+}
+
+
+        // 3. Cleanup Signal: Node Deletion
+        ipcRenderer.on('remove-torrent', (event, infoHash) => {
+            const node = document.getElementById(`info-hash-${infoHash}`);
+            if (node) torrentUl.removeChild(node);
+        });
+
+        // 4. Primary State Loop: Concurrent Torrent Management
+        ipcRenderer.on('update-torrents', (event, activeTorrents) => {
+            if (activeTorrents.length === 0) {
+                messageDisplay.classList.remove('hidden');
+                messageDisplay.innerHTML = 'Zero active peers. Dispatch a magnet URI to begin.';
+                return;
+            }
+            messageDisplay.classList.add('hidden');
+
+            activeTorrents.forEach(torrentData => {
+                let nodeElement = document.getElementById(`info-hash-${torrentData.infoHash}`);
+                
+                // Construct Node Template if non-existent in DOM
+                if (!nodeElement) {
+                    nodeElement = document.createElement('li');
+                    nodeElement.id = `info-hash-${torrentData.infoHash}`;
+                    nodeElement.className = 'card torrent downloading';
+                    nodeElement.innerHTML = `
+                        <div class="torrent-info">
+                            <span class="torrent-name">${torrentData.name || 'Resolving Metadata Pool...'}</span>
+                            <span class="torrent-meta">Handshaking with DHT...</span>
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill" style="width: 0%;"></div>
+                            </div>
+                        </div>`;
+                    
+                    // Interaction Layer
+                    nodeElement.oncontextmenu = (ev) => {
+                        nodeElement.classList.add('selected');
+                        ipcRenderer.send('show-torrent-options', torrentData, { x: ev.clientX, y: ev.clientY });
+                    };
+
+                    nodeElement.ondblclick = () => {
+                        console.log('[System] Manual trigger: Requesting local stream.');
+                        ipcRenderer.send('open-torrent', torrentData);
+                    };
+
+                    torrentUl.prepend(nodeElement);
+                }
+
+                // Node Component Update Logic
+                const metaText = nodeElement.querySelector('.torrent-meta');
+                const nameText = nodeElement.querySelector('.torrent-name');
+                const pBar = nodeElement.querySelector('.progress-bar-fill');
+
+                if (torrentData.name && nameText.textContent === 'Resolving Metadata Pool...') {
+                    nameText.textContent = torrentData.name;
+                }
+
+                const completionRatio = (torrentData.progress * 100).toFixed(1);
+                pBar.style.width = `${completionRatio}%`;
+
+                // Finite State Machine (FSM) for UI Updates
+                if (torrentData.error) {
+                    nodeElement.className = 'card torrent error';
+                    metaText.innerHTML = `Fatal Error: ${torrentData.error}`;
+                } else if (torrentData.done) {
+                    nodeElement.className = 'card torrent downloaded';
+                    metaText.innerHTML = `Status: Seed Complete | Payload: ${formatDataSize(torrentData.length)}`;
+                } else if (torrentData.paused) {
+                    nodeElement.className = 'card torrent stopped';
+                    metaText.innerHTML = `Status: Inactive | Progress: ${completionRatio}%`;
+                } else if (torrentData.ready) {
+                    nodeElement.className = 'card torrent downloading';
+                    metaText.innerHTML = `DL: ${formatDataSize(torrentData.downloadSpeed)}/s | Progress: ${completionRatio}% | ETR: ${calculateTimeRemaining(torrentData.timeRemaining)}`;
+                }
+            });
+        });
+
+        // 5. Contextual Cleanup: Option Close Event
+        ipcRenderer.on('options-menu-closed', () => {
+            document.querySelectorAll('li.selected').forEach(node => node.classList.remove('selected'));
+        });
+
+        // 6. Action Feedback: Buffer Start
+        ipcRenderer.on('adding-torrent', () => {
+            messageDisplay.classList.remove('hidden');
+            messageDisplay.innerHTML = 'Connecting to peer swarm... Accessing piece map.';
+        });
+
+    </script>
+</body>
+</html>
