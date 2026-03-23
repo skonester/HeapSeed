@@ -1,58 +1,62 @@
+<p align="center">
+  <img src="build/icon.png" alt="HeapSeed Logo" width="128">
+</p>
+
+<h1 align="center">HeapSeed Engine</h1>
+
+
+
 # HeapSeed Engine
 
-HeapSeed is a high-performance, open-source BitTorrent client with a modern technical interface.
+HeapSeed is a high-performance, open-source BitTorrent client specifically engineered for real-time MP4 video previewing. By leveraging sequential piece prioritization and optimized backend data piping, HeapSeed allows users to begin watching media moments after the download starts.
 
-HeapSeed is an Electron-based torrent engine designed for speed, clarity, and cross-platform reliability. It includes a dark-mode interface, real-time peer visualization, and integrated media streaming.
+## Core Focus: Real-Time Media Streaming to preview torrent videos before payload is completed
+
+- **Sequential Piece Prioritization:** The engine prioritizes the beginning and end of the MP4 file (metadata/moov atoms) followed by sequential blocks to ensure a continuous stream.
+- **Zero-Wait Playback:** The integrated Plyr engine hooks directly into the WebTorrent read stream, bypassing the need for a full file download before initialization.
+- **Backend Buffer Optimization:** Improved data piping between the torrent engine and the render process reduces stuttering and memory overhead during high-bitrate playback.
+
+---
 
 ## Features
 
-- Technical dark interface optimized for low-light environments.
-- Real-time streaming with the integrated Plyr player.
-- Cross-platform packaging for Windows, Linux, and macOS.
-- Magnet URI handling directly from the browser.
-- Animated UI transitions.
+- **Technical Interface:** High-contrast dark mode optimized for technical clarity and low-light environments.
+- **Advanced MP4 Previewing:** Instant playback of video files as they are being fetched from the swarm.
+- **Portable and Installer Options:** Support for both a standard Windows installation and a zero-install portable executable.
+- **Magnet URI Integration:** Seamless handling of magnet links directly from web browsers.
+- **Linux Distribution Support:** Native builds for AppImage, DEB, and RPM formats.
 
-## Tech Stack
+---
 
-- Engine: WebTorrent
-- Runtime: Electron
-- Styling: Vanilla CSS
-- Media: Plyr
-- Icons: Lucide and custom SVGs
+## Cloud Building (No Terminal Required)
 
-## Prerequisites
+Users can generate the latest installers for Windows or Linux without a local development environment by using the GitHub Cloud Builder.
 
-- Node.js 18 or later.
-- npm.
-- On Windows, Visual Studio Build Tools 2022 with the Desktop development with C++ workload for native module compilation. [web:58]
+### Triggering a Build
+1. Navigate to the **Actions** tab of this repository.
+2. On the left sidebar, select **Cloud Build & Release**.
+3. Select the **Run workflow** dropdown on the right side of the interface.
+4. Confirm the branch is set to `main` and select the green **Run workflow** button.
+5. The process will take 3–5 minutes to package the binaries.
 
-## Installation
+### Locating Artifacts
+Once the build is complete, go to the **Releases** section of the repository. A **Draft Release** will be available containing:
+- **Windows:** NSIS Installer (.exe) and Portable (.exe).
+- **Linux:** AppImage, DEB, and RPM packages.
 
+*Note: If you have forked this repository, you must manually enable Actions in the Actions tab for the "Run workflow" button to appear.*
+
+---
+
+## Local Development
+
+### Prerequisites
+- Node.js v20 or later.
+- Windows: Visual Studio Build Tools 2022 (with "Desktop development with C++") for native module compilation.
+
+### Setup
 ```bash
-git clone https://github.com/Skonester/HeapSeed.git
+git clone [https://github.com/Skonester/HeapSeed.git](https://github.com/Skonester/HeapSeed.git)
 cd HeapSeed
 npm install
-Development
-bash
-npm start
-Production Build
-HeapSeed uses electron-builder to create production-ready installers. The configured Windows target is NSIS, and the build output is written to the dist/ directory. [web:53][web:58]
-
-Windows Build
-bash
-npm run pack-windows
-Full Build
-bash
-npm run dist
-All Platforms
-bash
-npm run pack-all
-Build Notes
-npm run pack-windows builds the Windows NSIS installer. [web:53][web:58]
-
-npm run dist cleans dist/ and then builds Windows and Linux packages based on the current script. [web:53]
-
-npm run pack-all should be updated for Windows because open dist/ is a macOS command, so it will fail on Windows as written.
-
-Output
-Build artifacts are generated in the dist/ directory.
+npm run build
