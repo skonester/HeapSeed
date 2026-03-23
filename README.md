@@ -62,7 +62,7 @@ Once the build is complete, go to the **Releases** section of the repository. A 
 
 ### Setup
 ```bash
-git clone [https://github.com/Skonester/HeapSeed.git](https://github.com/Skonester/HeapSeed.git)
+git clone [https://github.com/Skonester/HeapSeed.git]
 cd HeapSeed
 npm install
 npm run build
