@@ -26,6 +26,12 @@ HeapSeed is a high-performance, open-source BitTorrent client specifically engin
 - **Magnet URI Integration:** Seamless handling of magnet links directly from web browsers.
 - **Linux Distribution Support:** Native builds for AppImage, DEB, and RPM formats.
 
+
+## To test features
+go to public repository for test links for magnet and .torrent
+https://webtorrent.io/free-torrents
+
+
 ---
 
 ## Cloud Building (No Terminal Required)
