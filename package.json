@@ -6,11 +6,12 @@
   "main": "src/app.js",
   "scripts": {
     "start": "electron .",
+    "clean": "rmdir /s /q dist 2>nul",
+    "dist": "npm run clean && electron-builder --win nsis --linux rpm --x64",
     "pack-all": "npm run pack-mac && npm run pack-windows && npm run pack-linux && open dist/",
     "pack-mac": "npx electron-builder -m --x64 --arm64",
-    "pack-linux": "npx electron-builder -l deb tar.xz --x64",
-    "pack-windows": "npx electron-builder -w nsis --x64",
-    "postinstall": "electron-builder install-app-deps"
+    "pack-linux": "npx electron-builder -l deb rpm tar.xz --x64",
+    "pack-windows": "npx electron-builder -w nsis --x64"
   },
   "keywords": [
     "magnet",
@@ -23,6 +24,15 @@
     "appId": "com.skonester.heapseed",
     "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "asar": false,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "package.json",
+      "node_modules/**/*",
+      "!**/*.{o,obj,pdb,h,cpp,c,cc}"
+    ],
     "publish": [
       {
         "provider": "github",
@@ -62,6 +72,7 @@
   "dependencies": {
     "axios": "^1.13.6",
     "electron-updater": "^6.8.3",
+    "node-gyp": "^12.2.0",
     "plyr": "^3.8.4",
     "sound-play": "^1.1.0",
     "trash": "^10.1.1",

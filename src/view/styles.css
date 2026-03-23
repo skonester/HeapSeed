@@ -1,297 +1,253 @@
-/***
-    You may be wondering why the scripts of index.html is written directly into the file itself, while styles are written here.
-    The reason is I was initially planning to have more than one windows, for example, a Preferences one. However in the final
-    stage, the plan was cancelled because I just want to keep things as much simple as possible. Therefore all settings other
-    than 'Set Downloads folder' and 'On Torrent done' are not implemented (yet), such as speed limits. Still, the stylesheet
-    is not merged because I might add a Preferences/Settings window later, or something else.
-*/
-
+/* -------------------------
+   Font Definitions
+   ------------------------- */
 @font-face {
-    font-family: 'Lato';
-    font-weight: normal;
-    src: URL('../fonts/lato_regular.ttf') format('truetype');
+  font-family: 'Lato';
+  font-weight: normal;
+  src: url('../fonts/lato_regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Montserrat';
+  font-weight: bold;
+  src: url('../fonts/montserrat_bold.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Nunito';
+  font-weight: normal;
+  src: url('../fonts/nunito_regular.ttf') format('truetype');
 }
 
-@font-face {
-    font-family: 'Lato';
-    font-weight: bold;
-    src: URL('../fonts/lato_bold.ttf') format('truetype');
+/* -------------------------
+   Core Variables
+   ------------------------- */
+:root {
+  --bg-deep: #000000;
+  --bg-surface: #0a0a0a;
+  --card-bg: #111111;
+  --card-border: #222222;
+  
+  --text-main: #ffffff;
+  --text-muted: #888888;
+  
+  --accent: #0078d4;
+  --accent-glow: rgba(0, 120, 212, 0.4);
+  
+  /* Enhanced State Colors with Glows */
+  --red: #ff5252;
+  --red-glow: rgba(255, 82, 82, 0.3);
+  --yellow: #ffd740;
+  --green: #69f0ae;
+  --green-glow: rgba(105, 240, 174, 0.3);
+  --blue: #40c4ff;
+  --blue-glow: rgba(64, 196, 255, 0.3);
+  --purple: #e040fb;
+  
+  --radius: 12px; /* Slightly rounder for a modern feel */
+  --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-@font-face {
-    font-family: 'Montserrat';
-    font-weight: normal;
-    src: URL('../fonts/montserrat_regular.ttf') format('truetype');
-}
-
-@font-face {
-    font-family: 'Montserrat';
-    font-weight: bold;
-    src: URL('../fonts/montserrat_bold.ttf') format('truetype');
-}
-
-@font-face {
-    font-family: 'Nunito';
-    font-weight: normal;
-    src: URL('../fonts/nunito_regular.ttf') format('truetype');
-}
-
-@font-face {
-    font-family: 'Nunito';
-    font-weight: bold;
-    src: URL('../fonts/nunito_bold.ttf') format('truetype');
-}
-
-html {
-    font-family: 'Nunito';
+/* -------------------------
+   Global Setup
+   ------------------------- */
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-deep);
+  color: var(--text-main);
+  font-family: 'Nunito', sans-serif;
+  overflow: hidden;
 }
 
 body {
-    color-scheme: dark;
-    color: #FFFFFF;
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    margin: 0;
-    overflow: hidden;
-    padding: 0;
-    
-    /* Added background image styles */
-    background-image: url('./icon.png');
-    background-size: 25%;
-    background-position: center;
-    background-repeat: no-repeat;
-    background-color: #000000; /* fallback if image fails */
-    
-    --red: #EF9A9A;
-    --yellow: #FFF59D;
-    --green: #A5D6A7;
-    --blue: #90CAF9;
-    --purple: #CE93D8;
-    --card-background: #404040;
-    --main-background: transparent;
-    --foreground: #FFFFFF;
+  display: flex;
+  flex-direction: column;
+  background-image: url('./icon.png');
+  background-size: 220px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
 }
 
+/* -------------------------
+   Titlebar / Header
+   ------------------------- */
 header {
-    align-items: center;
-    display: flex;
-    flex-direction: row;
-    padding: 8px;
-    z-index: 2;
-    -webkit-app-region: drag;
-}
-
-header span.spacer {
-    flex: 1;
-    /* min-width: 20px; */
+  display: flex;
+  align-items: center;
+  padding: 12px 20px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--card-border);
+  -webkit-app-region: drag;
+  z-index: 100;
 }
 
 header input {
-    border: 2px solid #aaaaaa; 
-    border-radius: 8px;
-    background: transparent;
-    color: var(--foreground);
-    margin: 0 20px;
-    min-width: 420px;
-    max-width: 960px;
-    outline: none;
-    padding: 6px;
-    text-align: center;
-    width: 60%;
-    -webkit-app-region: no-drag;
-}
-
-.win32 header input {
-    min-width: 400px;
+  flex: 1;
+  max-width: 550px;
+  margin: 0 15px;
+  background: #111;
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  color: #fff;
+  padding: 10px 18px;
+  font-size: 14px;
+  text-align: center;
+  outline: none;
+  transition: var(--transition);
+  -webkit-app-region: no-drag;
 }
 
 header input:focus {
-    border: 2px solid var(--foreground); 
-}
-
-header input::placeholder {
-    color: #a0a0a0;
+  border-color: var(--accent);
+  box-shadow: 0 0 12px var(--accent-glow);
 }
 
 header button {
-    background: transparent;
-    border: none;
-    border-radius: 8px;
-    padding: 4px;
-    outline: none;
-    transition-duration: .25s;
-    -webkit-app-region: no-drag;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  padding: 8px;
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  -webkit-app-region: no-drag;
 }
 
 header button:hover {
-    background: #80808060;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 header button svg {
-    display: block;
-    fill: var(--foreground);
-    height: 24px;
-    width: 24px;
+  fill: #fff;
+  width: 22px;
+  height: 22px;
 }
 
+/* -------------------------
+   Main Content Area
+   ------------------------- */
 main {
-    background: var(--main-background);
-    flex: 1;
-    height: 100%;
-    overflow-y: scroll;
-    user-select: none;
+  flex: 1;
+  overflow-y: auto;
+  padding: 25px;
+  background: rgba(0, 0, 0, 0.7); /* Darker overlay for better contrast */
+  backdrop-filter: blur(4px);
 }
 
-ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
+/* Pro Scrollbar */
+main::-webkit-scrollbar { width: 6px; }
+main::-webkit-scrollbar-track { background: transparent; }
+main::-webkit-scrollbar-thumb { 
+  background: #222; 
+  border-radius: 10px; 
 }
+main::-webkit-scrollbar-thumb:hover { background: var(--accent); }
 
-li.torrent {
-    align-items: center;
-    border-radius: 8px;
-    color: var(--foreground);
-    display: flex;
-    flex-direction: row;
-    margin: 20px auto;
-    max-width: 960px;
-    overflow: hidden;
-    padding: 12px;
-    width: 90%;
-}
-
-li.torrent div {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-li.torrent span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-li.torrent.downloading .torrent-meta {
-    color: var(--blue);
-}
-
-li.torrent.downloaded .torrent-meta  {
-    color: var(--green);
-}
-
-li.torrent.stopped .torrent-meta  {
-    color: var(--purple);
-}
-
-li.torrent.error .torrent-meta  {
-    color: var(--red);
+/* -------------------------
+   Torrent List Items (Glow & Lift)
+   ------------------------- */
+ul#torrent-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 auto;
+  max-width: 850px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
 }
 
 li.torrent {
-    border: 2px solid transparent;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  transition: all var(--transition);
+  user-select: none;
+  position: relative;
+  overflow: hidden;
 }
 
+/* The Lift Effect */
+li.torrent:hover {
+  border-color: #333;
+  transform: translateY(-3px);
+  background: #151515;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+}
+
+/* The Glow Effect for selection */
 li.torrent.selected {
-    border: 2px solid var(--foreground);
+  border-color: var(--accent);
+  box-shadow: 0 0 15px var(--accent-glow);
+  background: rgba(0, 120, 212, 0.05);
 }
 
-li.torrent .torrent-info {
-    flex: 1;
-    line-height: 1.4rem;
+.torrent-info {
+  flex: 1;
+  min-width: 0;
 }
 
-li.torrent .torrent-name {
-    /* font-family: 'Montserrat'; */
-    font-size: 18px;
-    font-weight: bold;
-    padding: 2px 0;
+.torrent-name {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  letter-spacing: 0.3px;
+  margin-bottom: 5px;
 }
 
-li.torrent .torrent-meta {
-    font-size: 14px;
-    padding: 2px 0;
+/* State-specific Meta & Neon Shadows */
+.torrent-meta {
+  font-size: 13px;
+  font-family: 'Lato', sans-serif;
+  transition: color 0.3s;
 }
 
-li.torrent button {
-    background: transparent;
-    border: none;
-    border-radius: 24px;
-    outline: none;
-    padding: 8px;
-    transition-duration: .25s;
+li.torrent.downloading { border-left: 4px solid var(--blue); }
+li.torrent.downloading .torrent-meta { color: var(--blue); }
+
+li.torrent.downloaded { border-left: 4px solid var(--green); }
+li.torrent.downloaded .torrent-meta  { color: var(--green); }
+li.torrent.downloaded:hover { box-shadow: 0 0 20px var(--green-glow); }
+
+li.torrent.error { border-left: 4px solid var(--red); }
+li.torrent.error .torrent-meta { color: var(--red); }
+li.torrent.error:hover { box-shadow: 0 0 20px var(--red-glow); }
+
+/* -------------------------
+   Progress Bar
+   ------------------------- */
+.progress-bar-bg {
+  width: 100%;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  margin-top: 10px;
 }
 
-li.torrent button:hover {
-    background: #80808040;
+.progress-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+  border-radius: 10px;
+  transition: width 0.4s ease;
 }
 
-li.torrent button svg {
-    display: block;
-    fill: #22223b;
-    height: 24px;
-    width: 24px;
-}
+/* -------------------------
+   Platform & Helpers
+   ------------------------- */
+.hidden { display: none !important; }
 
-.card {
-    background: var(--card-background);
-    box-shadow: rgba(9, 30, 66, 0.25) 0px 1px 1px, rgba(9, 30, 66, 0.13) 0px 0px 1px 1px;
-}
-
-.hidden {
-    display: none !important;
-}
-
-.darwin .hide-on-darwin {
-    display: none !important;
-}
-
-.linux .hide-on-linux {
-    display: none !important;
-}
-
-.win32 .hide-on-win32 {
-    display: none !important;
-}
-
-.win32 .options:hover {
-    background: #4FC3F7;
-}
-
-.win32 .minimize:hover {
-    background: #FDD835;
-}
-
-.win32 .maximize:hover, .unmaximize:hover {
-    background: #00E676;
-}
-
-.win32 .close:hover {
-    background: #FF5252;
-}
-
-.win32.dark .options:hover {
-    background: #039BE5;
-}
-
-.win32.dark .minimize:hover {
-    background: #F9A825;
-}
-
-.win32.dark .maximize:hover, .dark .unmaximize:hover {
-    background: #4CAF50;
-}
-
-.win32.dark .close:hover {
-    background: #F44336;
-}
+/* Win32 Hover Colors */
+.win32 .options:hover   { background: #039BE5 !important; }
+.win32 .minimize:hover  { background: #F9A825 !important; }
+.win32 .maximize:hover  { background: #4CAF50 !important; }
+.win32 .close:hover     { background: #F44336 !important; }
 
 #message {
-    /* font-family: 'Montserrat'; */
-    font-size: 20px;
-    font-weight: bold;
-    padding: 40px;
-    text-align: center;
+  text-align: center;
+  color: var(--text-muted);
+  padding-top: 80px;
 }
