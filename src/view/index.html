@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heapseed Engine | System Interface</title>
+
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; connect-src 'self' http://localhost:* ws: wss:; img-src 'self' data:; media-src 'self' http://localhost:* blob:;">
+
+    <link rel="stylesheet" href="../../node_modules/plyr/dist/plyr.css">
+    
+    <script src="../renderer.js" defer></script>
+    <script src="../../node_modules/plyr/dist/plyr.polyfilled.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html { height: 100%; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #0d0221 0%, #1a0f4e 25%, #0d2b6e 55%, #1a0840 80%, #0d0221 100%);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.07);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 1px 24px rgba(0, 0, 0, 0.35);
+            padding: 12px 24px;
+            padding-top: 40px;
+            -webkit-app-region: drag;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            -webkit-app-region: no-drag;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo { font-size: 36px; }
+
+        .logo-text h1 {
+            font-size: 24px;
+            color: rgba(255, 255, 255, 0.95);
+            font-weight: 700;
+        }
+
+        .logo-text p {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .window-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .control-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .control-btn:hover { background: rgba(255, 255, 255, 0.2); }
+        .control-btn svg { width: 16px; height: 16px; fill: currentColor; }
+
+        .container {
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 32px 24px 0;
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .engine-split {
+            display: flex;
+            gap: 20px;
+            flex: 1;
+            overflow: hidden;
+            padding-bottom: 24px;
+        }
+
+        .search-column {
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .monitor-column {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        #resultsContainer {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        #resultsContainer::-webkit-scrollbar, .monitor-column::-webkit-scrollbar { width: 6px; }
+        #resultsContainer::-webkit-scrollbar-track, .monitor-column::-webkit-scrollbar-track { background: transparent; }
+        #resultsContainer::-webkit-scrollbar-thumb, .monitor-column::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 3px; }
+
+        .search-box {
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        .search-box::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 16px; right: 16px; height: 1px;
+            background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.55), transparent);
+        }
+
+        .search-input-wrapper {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .search-input-container {
+            position: relative;
+            flex: 1;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255, 255, 255, 0.45);
+            font-size: 20px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 14px 16px 14px 48px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            font-size: 16px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            transition: all 0.3s;
+        }
+
+        .search-input::placeholder { color: rgba(255, 255, 255, 0.38); }
+        .search-input:focus {
+            outline: none; border-color: rgba(120, 180, 255, 0.65);
+            background: rgba(255, 255, 255, 0.16);
+            box-shadow: 0 0 0 3px rgba(80, 140, 255, 0.15);
+        }
+
+        .search-btn, .reset-btn {
+            padding: 14px 32px;
+            border-radius: 20px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .search-btn {
+            background: linear-gradient(to right, rgba(59, 130, 246, 0.9), rgba(99, 102, 241, 0.9));
+            color: white; border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+        }
+        .search-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(59, 130, 246, 0.55); }
+        .search-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .reset-btn {
+            background: rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .reset-btn:hover { background: rgba(255, 255, 255, 0.18); transform: translateY(-1px); }
+
+        .categories, .sort-options, .source-options {
+            display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; align-items: center;
+        }
+
+        .category-btn, .sort-btn {
+            padding: 8px 16px; border-radius: 20px; font-weight: 600; cursor: pointer; transition: all 0.3s; font-size: 14px;
+        }
+
+        .category-btn {
+            border: 1px solid rgba(255, 255, 255, 0.15); background: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.7);
+        }
+        .category-btn:hover { background: rgba(255, 255, 255, 0.15); color: white; }
+        .category-btn.active { background: rgba(80, 140, 255, 0.35); border-color: rgba(100, 160, 255, 0.55); color: white; }
+
+        .sort-label { color: rgba(255, 255, 255, 0.5); font-weight: 600; font-size: 14px; }
+        .sort-btn { border: none; background: transparent; color: rgba(255, 255, 255, 0.55); }
+        .sort-btn:hover { background: rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.85); }
+        .sort-btn.active { background: rgba(255, 255, 255, 0.15); color: white; }
+
+        .source-checkbox {
+            display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 14px;
+            color: rgba(255, 255, 255, 0.65); padding: 6px 12px; border-radius: 20px; transition: background 0.2s;
+        }
+        .source-checkbox:hover { background: rgba(255, 255, 255, 0.08); }
+        .source-checkbox input { cursor: pointer; width: 16px; height: 16px; }
+        .source-checkbox input:checked + span { color: rgba(140, 195, 255, 1); font-weight: 600; }
+
+        .result-item {
+            background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 16px; padding: 20px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25); transition: all 0.3s; position: relative; margin-bottom: 12px;
+        }
+        .result-item:hover { transform: translateY(-2px); background: rgba(255, 255, 255, 0.15); }
+        
+        .result-content { display: flex; justify-content: space-between; align-items: start; gap: 16px; }
+        .result-info { flex: 1; min-width: 0; }
+        .result-title { font-size: 16px; font-weight: 600; color: white; margin-bottom: 8px; word-break: break-word; }
+        .result-meta { display: flex; gap: 16px; font-size: 12px; color: rgba(255, 255, 255, 0.6); flex-wrap: wrap; align-items: center; }
+        
+        .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px;}
+        .dot.green { background: #34d399; }
+        .dot.red { background: #f87171; }
+
+        .btn-group { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
+        .action-btn {
+            padding: 8px 16px; border-radius: 12px; font-weight: 600; font-size: 12px; cursor: pointer; border: none; color: white; transition: 0.2s;
+        }
+        .btn-magnet { background: rgba(255, 255, 255, 0.15); }
+        .btn-magnet:hover { background: rgba(255, 255, 255, 0.25); }
+        .btn-init { background: linear-gradient(to right, rgba(16, 185, 129, 0.9), rgba(20, 184, 166, 0.9)); }
+        .btn-init:hover { transform: scale(1.05); }
+
+        /* Monitor / Download Area */
+        .monitor-card {
+            background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px; padding: 16px;
+        }
+        .monitor-header { color: #8cb4ff; font-size: 14px; font-weight: bold; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
+
+        #video-container { width: 100%; border-radius: 12px; overflow: hidden; margin-bottom: 20px; }
+        .hidden { display: none !important; }
+
+        .torrent-node {
+            background: rgba(255,255,255,0.05); border-radius: 8px; padding: 12px; margin-bottom: 8px; border-left: 3px solid #3498db;
+        }
+        .torrent-node.done { border-left-color: #2ecc71; }
+        .torrent-node.error { border-left-color: #e74c3c; }
+        
+        .t-name { font-size: 13px; color: white; font-weight: 600; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .t-meta { font-size: 11px; color: #a0aec0; margin-bottom: 6px; }
+        
+        .progress-bg { background: rgba(255,255,255,0.1); height: 4px; border-radius: 2px; overflow: hidden; }
+        .progress-fill { background: #3498db; height: 100%; width: 0%; transition: width 0.3s; }
+        .torrent-node.done .progress-fill { background: #2ecc71; width: 100%; }
+
+        /* History Dropdown */
+        .history-dropdown {
+            position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: rgba(12, 8, 35, 0.95);
+            backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 16px;
+            z-index: 100; display: none; overflow: hidden;
+        }
+        .history-item { padding: 10px 16px; cursor: pointer; color: rgba(255,255,255,0.75); font-size: 14px; }
+        .history-item:hover { background: rgba(255,255,255,0.1); }
+        .history-clear { padding: 10px 16px; text-align: center; font-size: 13px; color: #ff7878; cursor: pointer; border-top: 1px solid rgba(255,255,255,0.1); }
+
+        .empty-state { text-align: center; padding: 60px 20px; }
+        .empty-icon { font-size: 48px; margin-bottom: 16px; }
+        .empty-title { color: white; margin-bottom: 8px; }
+        .empty-text { color: rgba(255,255,255,0.5); font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+    <div class="header-content">
+        <div class="logo-section">
+            <div class="logo">
+                <img src="icon.png" alt="HeapSeed Logo" class="logo-icon">
+            </div>
+            <div class="logo-text">
+                <h1>HeapSeed Engine</h1>
+                <p>Wired to HeapSearch Core</p>
+                </div>
+            </div>
+            
+            <div class="window-controls">
+                <button class="control-btn" onclick="showAppOptionsMenu(this)" title="System Options">
+                    <svg viewBox="0 0 24 24"><path d="m11.998 2c5.517 0 9.997 4.48 9.997 9.998 0 5.517-4.48 9.997-9.997 9.997-5.518 0-9.998-4.48-9.998-9.997 0-5.518 4.48-9.998 9.998-9.998zm0 1.5c-4.69 0-8.498 3.808-8.498 8.498s3.808 8.497 8.498 8.497 8.497-3.807 8.497-8.497-3.807-8.498-8.497-8.498zm2.502 8.495c0-.69.56-1.25 1.25-1.25s1.25.56 1.25 1.25-.56 1.25-1.25 1.25-1.25-.56-1.25-1.25zm-3.75 0c0-.69.56-1.25 1.25-1.25s1.25.56 1.25 1.25-.56 1.25-1.25 1.25-1.25-.56-1.25-1.25zm-3.75 0c0-.69.56-1.25 1.25-1.25s1.25.56 1.25 1.25-.56 1.25-1.25 1.25-1.25-.56-1.25-1.25z"/></svg>
+                </button>
+                <button class="control-btn" onclick="openDownloadsFolder()" title="Target Directory">
+                    <svg viewBox="0 0 24 24"><path d="m6.864 3.424c.502-.301 1.136.063 1.136.642 0 .264-.138.509-.365.644-2.476 1.486-4.135 4.197-4.135 7.292 0 4.691 3.808 8.498 8.498 8.498s8.497-3.807 8.497-8.498c0-3.093-1.656-5.803-4.131-7.289-.225-.136-.364-.38-.364-.644 0-.582.635-.943 1.137-.642 2.91 1.748 4.858 4.936 4.858 8.575 0 5.519-4.479 9.998-9.997 9.998s-9.998-4.479-9.998-9.998c0-3.641 1.951-6.83 4.864-8.578zm.831 8.582s2.025 2.021 3.779 3.774c.147.147.339.22.53.22.192 0 .384-.073.531-.22 1.753-1.752 3.779-3.775 3.779-3.775.145-.145.217-.336.217-.526 0-.192-.074-.384-.221-.531-.292-.293-.766-.294-1.056-.004l-2.5 2.499v-10.693c0-.414-.336-.75-.75-.75s-.75.336-.75.75v10.693l-2.498-2.498c-.289-.289-.762-.286-1.054.006-.147.147-.221.339-.222.531 0 .19.071.38.215.524z"/></svg>
+                </button>
+                <button class="control-btn" onclick="minimize()">—</button>
+                <button class="control-btn" onclick="maximize()">□</button>
+                <button class="control-btn" onclick="closeWindow()" style="color: #ff7878;">✕</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="engine-split">
+            
+            <div class="search-column">
+                <div class="search-box">
+                    <div class="search-input-wrapper">
+                        <div class="search-input-container">
+                            <span class="search-icon">🔍</span>
+                            <input type="text" class="search-input" id="searchInput" placeholder="Search parameters or URI..." onkeypress="handleKeyPress(event)" onfocus="showHistory()" onblur="setTimeout(hideHistory, 200)">
+                            <div class="history-dropdown" id="historyDropdown"></div>
+                        </div>
+                        <button class="search-btn" id="searchBtn" onclick="handleSearch()">Engage</button>
+                        <button class="reset-btn" onclick="handleReset()">Reset</button>
+                    </div>
+
+                    <div class="categories">
+                        <button class="category-btn active" data-category="all" onclick="setCategory('all')">🌐 All</button>
+                        <button class="category-btn" data-category="movies" onclick="setCategory('movies')">🎬 Movies</button>
+                        <button class="category-btn" data-category="tv" onclick="setCategory('tv')">📺 TV</button>
+                        <button class="category-btn" data-category="music" onclick="setCategory('music')">🎵 Music</button>
+                        <button class="category-btn" data-category="software" onclick="setCategory('software')">💻 Software</button>
+                    </div>
+
+                    <div class="sort-options">
+                        <span class="sort-label">📊 Sort:</span>
+                        <button class="sort-btn active" data-sort="seeders" onclick="setSort('seeders')">Seeders</button>
+                        <button class="sort-btn" data-sort="size" onclick="setSort('size')">Size</button>
+                        <button class="sort-btn" data-sort="name" onclick="setSort('name')">Name</button>
+                    </div>
+
+                    <div class="source-options">
+                        <span class="sort-label">🌐 Sources:</span>
+                        <label class="source-checkbox"><input type="checkbox" checked onchange="toggleSource('YTS')"><span>YTS</span></label>
+                        <label class="source-checkbox"><input type="checkbox" checked onchange="toggleSource('Nyaa')"><span>Nyaa</span></label>
+                        <label class="source-checkbox"><input type="checkbox" checked onchange="toggleSource('LimeTorrents')"><span>Lime</span></label>
+                        <label class="source-checkbox"><input type="checkbox" checked onchange="toggleSource('TorrentDownloads')"><span>TorrentDL</span></label>
+                    </div>
+                </div>
+
+                <div id="resultsContainer">
+                    <div class="empty-state">
+                        <div class="empty-icon">📡</div>
+                        <h3 class="empty-title">Awaiting Input</h3>
+                        <p class="empty-text">Systems nominal. Ready to scan distributed nodes.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="monitor-column">
+                <div id="video-container" class="hidden">
+                    <video id="player" playsinline controls crossorigin></video>
+                </div>
+
+                <div class="monitor-card">
+                    <div class="monitor-header">Active Operations</div>
+                    <div id="torrent-list">
+                        <div class="empty-state" style="padding: 20px;">
+                            <p class="empty-text" style="font-size: 12px;">No active peer connections.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        /**
+         * IPC & CORE INIT
+         */
+        const { ipcRenderer, clipboard } = require('electron');
+        
+        let allResults = [];
+        let currentCategory = 'all';
+        let currentSort = 'seeders';
+        let enabledSources = ['YTS', 'Nyaa', 'LimeTorrents', 'TorrentDownloads'];
+        let plyrInstance = null;
+
+        const BYTE_GB = 1073741824, BYTE_MB = 1048576, BYTE_KB = 1024;
+
+        // --- UI SEARCH LOGIC ---
+
+        function loadHistory() { return JSON.parse(localStorage.getItem('searchHistory') || '[]'); }
+        function saveToHistory(query) {
+            if(!query.trim() || query.startsWith('magnet:')) return;
+            let history = loadHistory().filter(h => h !== query);
+            history.unshift(query);
+            localStorage.setItem('searchHistory', JSON.stringify(history.slice(0, 15)));
+        }
+
+        function showHistory() {
+            const history = loadHistory();
+            const dropdown = document.getElementById('historyDropdown');
+            if (!history.length) return;
+            const items = history.map(q => `<div class="history-item" onclick='selectHistoryItem(${JSON.stringify(q)})'>🕒 ${escapeHtml(q)}</div>`).join('');
+            dropdown.innerHTML = `${items}<div class="history-clear" onclick="clearHistory()">Clear Cache</div>`;
+            dropdown.style.display = 'block';
+        }
+        
+        function hideHistory() { document.getElementById('historyDropdown').style.display = 'none'; }
+        
+        function selectHistoryItem(query) {
+            document.getElementById('searchInput').value = query;
+            hideHistory(); handleSearch();
+        }
+        function clearHistory() { localStorage.removeItem('searchHistory'); hideHistory(); }
+
+        function handleKeyPress(e) { if (e.key === 'Enter') handleSearch(); }
+
+        async function handleSearch() {
+            const input = document.getElementById('searchInput').value.trim();
+            if (!input) return;
+
+            // Direct Magnet/URL interception
+            if (input.startsWith('magnet:') || (input.startsWith('http') && input.includes('.torrent'))) {
+                ipcRenderer.send('add-torrent', input);
+                document.getElementById('searchInput').value = '';
+                return;
+            }
+
+            saveToHistory(input);
+            document.getElementById('searchBtn').innerText = 'Scanning...';
+            document.getElementById('resultsContainer').innerHTML = '<div class="empty-state"><p class="empty-text">Resolving metadata across nodes...</p></div>';
+
+            try {
+                const result = await ipcRenderer.invoke('search-torrents', input, currentCategory);
+                if (result.success) {
+                    allResults = result.torrents;
+                    applyFiltersAndRender();
+                } else {
+                    document.getElementById('resultsContainer').innerHTML = `<div class="empty-state"><p class="empty-text" style="color:#ff7878">Node Error: ${result.error}</p></div>`;
+                }
+            } catch (err) {
+                console.error(err);
+                document.getElementById('resultsContainer').innerHTML = '<div class="empty-state"><p class="empty-text" style="color:#ff7878">Fatal IPC Communication Error</p></div>';
+            } finally {
+                document.getElementById('searchBtn').innerText = 'Engage';
+            }
+        }
+
+        function applyFiltersAndRender() {
+            let filtered = allResults.filter(t => enabledSources.includes(t.source));
+            if (currentCategory !== 'all') filtered = filtered.filter(t => t.category === currentCategory || t.category === 'mixed');
+            
+            filtered.sort((a, b) => {
+                if (currentSort === 'seeders') return (b.seeders || 0) - (a.seeders || 0);
+                if (currentSort === 'name') return (a.name || '').localeCompare(b.name || '');
+                if (currentSort === 'size') return parseSize(b.size) - parseSize(a.size);
+                return 0;
+            });
+
+            if(!filtered.length) {
+                document.getElementById('resultsContainer').innerHTML = '<div class="empty-state"><p class="empty-text">Zero records matched current parameters.</p></div>';
+                return;
+            }
+
+            document.getElementById('resultsContainer').innerHTML = filtered.map(r => `
+                <div class="result-item">
+                    <div class="result-content">
+                        <div class="result-info">
+                            <div class="result-title">${escapeHtml(r.name)}</div>
+                            <div class="result-meta">
+                                <span><span class="dot green"></span> ${r.seeders || 0}</span>
+                                <span><span class="dot red"></span> ${r.leechers || 0}</span>
+                                <span>${r.size || 'N/A'}</span>
+                                <span style="color:#8cb4ff; border:1px solid rgba(140,180,255,0.3); padding:2px 6px; border-radius:10px;">${r.source}</span>
+                            </div>
+                        </div>
+                        <div class="btn-group">
+                            <button class="action-btn btn-init" onclick="initiatePayload('${r.magnetLink}')">🚀 Initialize</button>
+                            <button class="action-btn btn-magnet" onclick="copyMagnet('${r.magnetLink}')">📋 Copy URI</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Action Handlers
+        function initiatePayload(magnet) { ipcRenderer.send('add-torrent', magnet); }
+        function copyMagnet(magnet) { clipboard.writeText(magnet); }
+        function handleReset() { document.getElementById('searchInput').value = ''; allResults = []; applyFiltersAndRender(); }
+        
+        // Mutators
+        function setCategory(cat) { currentCategory = cat; document.querySelectorAll('.category-btn').forEach(b => b.classList.toggle('active', b.dataset.category === cat)); applyFiltersAndRender(); }
+        function setSort(sort) { currentSort = sort; document.querySelectorAll('.sort-btn').forEach(b => b.classList.toggle('active', b.dataset.sort === sort)); applyFiltersAndRender(); }
+        function toggleSource(src) { const idx = enabledSources.indexOf(src); idx > -1 ? enabledSources.splice(idx, 1) : enabledSources.push(src); applyFiltersAndRender(); }
+
+        // Utils
+        function parseSize(s) {
+            if (!s) return 0;
+            const units = { 'B': 1, 'KB': 1024, 'MB': 1048576, 'GB': 1073741824, 'TB': 1099511627776 };
+            const m = s.match(/([0-9.]+)\s*([A-Z]+)/i);
+            return m ? parseFloat(m[1]) * (units[m[2].toUpperCase()] || 0) : 0;
+        }
+        function escapeHtml(text) { return (text||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
+        function formatBytes(bytes) {
+            if (!bytes || bytes === 0) return '0 B';
+            if (bytes >= BYTE_GB) return (bytes / BYTE_GB).toFixed(2) + ' GB';
+            if (bytes >= BYTE_MB) return (bytes / BYTE_MB).toFixed(2) + ' MB';
+            return (bytes / BYTE_KB).toFixed(2) + ' KB';
+        }
+
+        // --- WINDOW IPC ---
+        function showAppOptionsMenu(el) { const rect = el.getBoundingClientRect(); ipcRenderer.send('show-app-options', { x: rect.x, y: rect.y }); }
+        function openDownloadsFolder() { ipcRenderer.send('open-downloads-folder'); }
+        function minimize() { ipcRenderer.send('minimize:main-window'); }
+        function maximize() { ipcRenderer.send('maximize:main-window'); }
+        function closeWindow() { ipcRenderer.send('close:main-window'); }
+
+        // --- DOWNLOAD MANAGER IPC ---
+        const tList = document.getElementById('torrent-list');
+
+        ipcRenderer.on('start-plyr-stream', (e, streamUrl, mimeType) => {
+            document.getElementById('video-container').classList.remove('hidden');
+            if (!plyrInstance) plyrInstance = new Plyr('#player', { controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'fullscreen'] });
+            plyrInstance.source = { type: 'video', sources: [{ src: streamUrl, type: mimeType || 'video/mp4' }] };
+            plyrInstance.play().catch(console.error);
+        });
+
+        ipcRenderer.on('update-torrents', (e, activeTorrents) => {
+            if (!activeTorrents.length) {
+                tList.innerHTML = '<div class="empty-state" style="padding: 20px;"><p class="empty-text" style="font-size: 12px;">No active peer connections.</p></div>';
+                return;
+            }
+            // Clear empty state if exists
+            if (tList.querySelector('.empty-state')) tList.innerHTML = '';
+
+            activeTorrents.forEach(t => {
+                let node = document.getElementById(`hash-${t.infoHash}`);
+                if (!node) {
+                    node = document.createElement('div');
+                    node.id = `hash-${t.infoHash}`;
+                    node.className = 'torrent-node';
+                    node.innerHTML = `
+                        <div class="t-name">${escapeHtml(t.name) || 'Resolving Hash...'}</div>
+                        <div class="t-meta">Handshaking...</div>
+                        <div class="progress-bg"><div class="progress-fill"></div></div>
+                    `;
+                    node.oncontextmenu = (ev) => ipcRenderer.send('show-torrent-options', t, { x: ev.clientX, y: ev.clientY });
+                    node.ondblclick = () => ipcRenderer.send('open-torrent', t);
+                    tList.prepend(node);
+                }
+
+                const nameEl = node.querySelector('.t-name');
+                const metaEl = node.querySelector('.t-meta');
+                const progEl = node.querySelector('.progress-fill');
+                
+                if (t.name && nameEl.textContent.includes('Resolving')) nameEl.textContent = t.name;
+                
+                const percent = (t.progress * 100).toFixed(1);
+                progEl.style.width = `${percent}%`;
+
+                if (t.error) {
+                    node.className = 'torrent-node error';
+                    metaEl.textContent = `Error: ${t.error}`;
+                } else if (t.done) {
+                    node.className = 'torrent-node done';
+                    metaEl.textContent = `Completed | ${formatBytes(t.length)}`;
+                } else if (t.paused) {
+                    node.className = 'torrent-node';
+                    metaEl.textContent = `Paused | ${percent}%`;
+                } else {
+                    node.className = 'torrent-node';
+                    metaEl.textContent = `↓ ${formatBytes(t.downloadSpeed)}/s | ${percent}%`;
+                }
+            });
+        });
+
+        ipcRenderer.on('remove-torrent', (e, hash) => {
+            const node = document.getElementById(`hash-${hash}`);
+            if (node) node.remove();
+        });
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,267 @@
+/* -------------------------
+   Font Definitions
+   ------------------------- */
+@font-face {
+  font-family: 'Lato';
+  font-weight: normal;
+  src: url('../fonts/lato_regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Montserrat';
+  font-weight: bold;
+  src: url('../fonts/montserrat_bold.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Nunito';
+  font-weight: normal;
+  src: url('../fonts/nunito_regular.ttf') format('truetype');
+}
+
+/* -------------------------
+   Core Variables
+   ------------------------- */
+:root {
+  --bg-deep: #000000;
+  --bg-surface: #0a0a0a;
+  --card-bg: #111111;
+  --card-border: #222222;
+  
+  --text-main: #ffffff;
+  --text-muted: #888888;
+  
+  --accent: #0078d4;
+  --accent-glow: rgba(0, 120, 212, 0.4);
+  
+  /* Enhanced State Colors with Glows */
+  --red: #ff5252;
+  --red-glow: rgba(255, 82, 82, 0.3);
+  --yellow: #ffd740;
+  --green: #69f0ae;
+  --green-glow: rgba(105, 240, 174, 0.3);
+  --blue: #40c4ff;
+  --blue-glow: rgba(64, 196, 255, 0.3);
+  --purple: #e040fb;
+  
+  --radius: 12px; /* Slightly rounder for a modern feel */
+  --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* -------------------------
+   Global Setup
+   ------------------------- */
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-deep);
+  color: var(--text-main);
+  font-family: 'Nunito', sans-serif;
+  overflow: hidden;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  background-image: url('./icon.png');
+  background-size: 220px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+/* -------------------------
+   Titlebar / Header
+   ------------------------- */
+header {
+  display: flex;
+  align-items: center;
+  padding: 12px 20px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--card-border);
+  -webkit-app-region: drag;
+  z-index: 100;
+}
+
+header input {
+  flex: 1;
+  max-width: 550px;
+  margin: 0 15px;
+  background: #111;
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  color: #fff;
+  padding: 10px 18px;
+  font-size: 14px;
+  text-align: center;
+  outline: none;
+  transition: var(--transition);
+  -webkit-app-region: no-drag;
+}
+
+header input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+header button {
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  padding: 8px;
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  -webkit-app-region: no-drag;
+}
+
+header button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+header button svg {
+  fill: #fff;
+  width: 22px;
+  height: 22px;
+}
+
+/* -------------------------
+   Main Content Area
+   ------------------------- */
+main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 25px;
+  background: rgba(0, 0, 0, 0.7); /* Darker overlay for better contrast */
+  backdrop-filter: blur(4px);
+}
+
+/* Pro Scrollbar */
+main::-webkit-scrollbar { width: 6px; }
+main::-webkit-scrollbar-track { background: transparent; }
+main::-webkit-scrollbar-thumb { 
+  background: #222; 
+  border-radius: 10px; 
+}
+main::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+/* -------------------------
+   Torrent List Items (Glow & Lift)
+   ------------------------- */
+ul#torrent-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 auto;
+  max-width: 850px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+li.torrent {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  transition: all var(--transition);
+  user-select: none;
+  position: relative;
+  overflow: hidden;
+}
+
+/* The Lift Effect */
+li.torrent:hover {
+  border-color: #333;
+  transform: translateY(-3px);
+  background: #151515;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+}
+
+/* The Glow Effect for selection */
+li.torrent.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 15px var(--accent-glow);
+  background: rgba(0, 120, 212, 0.05);
+}
+
+.torrent-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.torrent-name {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  letter-spacing: 0.3px;
+  margin-bottom: 5px;
+}
+
+/* State-specific Meta & Neon Shadows */
+.torrent-meta {
+  font-size: 13px;
+  font-family: 'Lato', sans-serif;
+  transition: color 0.3s;
+}
+
+li.torrent.downloading { border-left: 4px solid var(--blue); }
+li.torrent.downloading .torrent-meta { color: var(--blue); }
+
+li.torrent.downloaded { border-left: 4px solid var(--green); }
+li.torrent.downloaded .torrent-meta  { color: var(--green); }
+li.torrent.downloaded:hover { box-shadow: 0 0 20px var(--green-glow); }
+
+li.torrent.error { border-left: 4px solid var(--red); }
+li.torrent.error .torrent-meta { color: var(--red); }
+li.torrent.error:hover { box-shadow: 0 0 20px var(--red-glow); }
+
+/* -------------------------
+   Progress Bar
+   ------------------------- */
+.progress-bar-bg {
+  width: 100%;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  margin-top: 10px;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+  border-radius: 10px;
+  transition: width 0.4s ease;
+}
+
+/* -------------------------
+   Platform & Helpers
+   ------------------------- */
+.hidden { display: none !important; }
+
+/* Win32 Hover Colors */
+.win32 .options:hover   { background: #039BE5 !important; }
+.win32 .minimize:hover  { background: #F9A825 !important; }
+.win32 .maximize:hover  { background: #4CAF50 !important; }
+.win32 .close:hover     { background: #F44336 !important; }
+
+#message {
+  text-align: center;
+  color: var(--text-muted);
+  padding-top: 80px;
+}
+
+.logo-icon {
+    width: 40px;  /* Adjust based on your header height */
+    height: 40px;
+    object-fit: contain;
+    display: block;
+}
+
+/* Ensure the container aligns with the text */
+.logo-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
