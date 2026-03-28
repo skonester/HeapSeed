@@ -1,5 +1,0 @@
-.DS_Store
-.env
-electron-builder.env
-dist
-node_modules
