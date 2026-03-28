@@ -7,7 +7,7 @@ const { ipcMain } = require('electron');
 // Pointing to the scraper logic within the src folder
 const { searchTorrents } = require('./src/torrentSearch');
 
-console.log('[Agent] HeapSeed Search Subsystem initializing...');
+console.log('[Agent] Heapseed Search Subsystem initializing...');
 
 // Register the search channel globally. 
 // Notice the complete absence of 'BrowserWindow' or 'app.whenReady()'.
