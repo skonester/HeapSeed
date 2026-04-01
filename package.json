@@ -1,7 +1,11 @@
 {
   "name": "HeapSeed",
   "productName": "HeapSeed",
-  "version": "1.0.2",
+  "version": "1.0.3",
+  "author": {
+    "name": "skonester",
+    "email": "admin@skonester.com"
+  },
   "main": "boot.js",
   "repository": {
     "type": "git",
