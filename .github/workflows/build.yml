@@ -17,6 +17,7 @@ jobs:
   release:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false # Prevents Windows from canceling if Linux fails
       matrix:
         os: [ubuntu-latest, windows-latest]
 
@@ -30,7 +31,13 @@ jobs:
           node-version: 20
           cache: 'npm'
 
-      - name: Install Dependencies
+      - name: Install System Dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm fakeroot dpkg
+
+      - name: Install Node Dependencies
         run: npm install
 
       - name: Build and Publish Windows
