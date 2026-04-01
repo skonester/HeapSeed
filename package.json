@@ -1,8 +1,12 @@
 {
   "name": "HeapSeed",
   "productName": "HeapSeed",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "main": "boot.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/skonester/heapseed.git"
+  },
   "scripts": {
     "start": "electron .",
     "clean": "rimraf dist",
@@ -10,6 +14,13 @@
   },
   "build": {
     "appId": "com.skonester.heapseed",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "skonester",
+        "repo": "heapseed"
+      }
+    ],
     "asar": true,
     "win": {
       "target": [
