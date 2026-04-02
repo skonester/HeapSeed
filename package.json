@@ -1,7 +1,8 @@
 {
   "name": "HeapSeed",
   "productName": "HeapSeed",
-  "version": "1.0.3",
+  "version": "1.0.5",
+  "description": "HeapSeed Network Application",
   "author": {
     "name": "skonester",
     "email": "admin@skonester.com"
@@ -14,6 +15,7 @@
   "scripts": {
     "start": "electron .",
     "clean": "rimraf dist",
+    "build:linux": "npm run clean && electron-builder --linux AppImage --x64",
     "build": "npm run clean && electron-builder --win nsis portable --x64"
   },
   "build": {
@@ -45,7 +47,8 @@
         "rpm"
       ],
       "category": "Network",
-      "icon": "build/icon.png"
+      "icon": "build/icon.png",
+      "afterPack": "./scripts/fix-codecs.js"
     }
   },
   "dependencies": {

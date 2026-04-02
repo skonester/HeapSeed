@@ -42,13 +42,15 @@ jobs:
 
       - name: Build and Publish Windows
         if: matrix.os == 'windows-latest'
-        run: npm run build -- --publish always
+        # [AGENT FIX]: Calls the dedicated Windows script we created
+        run: npm run build:win -- --publish always
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and Publish Linux
         if: matrix.os == 'ubuntu-latest'
-        run: npx electron-builder --linux deb rpm AppImage --x64 --publish always
+        # [AGENT FIX]: Calls the dedicated Linux script to trigger the afterPack injection
+        run: npm run build:linux -- --publish always
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPIMAGE_EXTRACT_AND_RUN: 1
