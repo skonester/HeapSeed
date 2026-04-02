@@ -1,7 +1,7 @@
 {
   "name": "HeapSeed",
   "productName": "HeapSeed",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "HeapSeed Network Application",
   "author": {
     "name": "skonester",
@@ -20,6 +20,7 @@
   },
   "build": {
     "appId": "com.skonester.heapseed",
+    "afterPack": "./scripts/fix-codecs.js",
     "publish": [
       {
         "provider": "github",
@@ -47,8 +48,7 @@
         "rpm"
       ],
       "category": "Network",
-      "icon": "build/icon.png",
-      "afterPack": "./scripts/fix-codecs.js"
+      "icon": "build/icon.png"
     }
   },
   "dependencies": {
