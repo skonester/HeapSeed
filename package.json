@@ -1,7 +1,7 @@
 {
   "name": "HeapSeed",
   "productName": "HeapSeed",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "HeapSeed Network Application",
   "author": {
     "name": "skonester",
@@ -21,6 +21,16 @@
   "build": {
     "appId": "com.skonester.heapseed",
     "afterPack": "./scripts/fix-codecs.js",
+    "asar": true,
+    "asarUnpack": [
+      "build-assets/**"
+    ],
+    "extraResources": [
+      {
+        "from": "build-assets/libffmpeg.so",
+        "to": "lib/libffmpeg.so"
+      }
+    ],
     "publish": [
       {
         "provider": "github",
@@ -28,7 +38,6 @@
         "repo": "heapseed"
       }
     ],
-    "asar": true,
     "win": {
       "target": [
         "nsis",
@@ -61,7 +70,7 @@
     "webtorrent": "^2.1.21"
   },
   "devDependencies": {
-    "electron": "^32.0.0",
+    "electron": "^32.3.3",
     "electron-builder": "^24.13.3",
     "rimraf": "^6.1.3"
   }
