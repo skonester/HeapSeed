@@ -11,8 +11,11 @@ const axios = require('axios'); // You might need to run: npm install axios
 const sintel = 'magnet:?xt=urn:btih:08ada5a7a6183aae1e09d831df6748d566095a10&dn=Sintel&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2F&xs=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2Fsintel.torrent'
 const sampleItems = [sintel]
 
-const build_date = '2026.3.23'
+const build_date = '2026.4.20'
 
+// Hardened Process Guard
+process.on('unhandledRejection', (reason) => console.log('[System] Swallowed Unhandled Rejection:', reason?.message || reason));
+process.on('uncaughtException', (err) => console.log('[System] Swallowed Uncaught Exception:', err?.message || err));
 
 // Global State Registry
 let webTorrentClient, moveToTrash
@@ -76,8 +79,12 @@ app.whenReady().then(() => Promise.all([import('webtorrent'), import('trash')]))
     if (fs.existsSync(path.join(app.getPath('userData'), 'History.json'))) {
         let torrentJson = JSON.parse(fs.readFileSync(path.join(app.getPath('userData'), 'History.json')))
         let joinPath = path.join
-        torrentJson.forEach(({ magnetURI, name, path, paused }) => {
-            let torrent = webTorrentClient.add(magnetURI, { path: path }, (torrent) => {
+        torrentJson.forEach(({ magnetURI, name, path, paused, torrentFileBase64 }) => {
+            let addPayload = magnetURI;
+            if (torrentFileBase64) {
+                try { addPayload = Buffer.from(torrentFileBase64, 'base64'); } catch (err) {}
+            }
+            let torrent = webTorrentClient.add(addPayload, { path: path }, (torrent) => {
                 torrent.source = 'history'
                 if (paused) torrent.pause()
             })
@@ -137,9 +144,10 @@ function createMainWindow() {
         frame: platform === 'linux',
         titleBarStyle: platform === 'linux' ? 'default' : (platform === 'darwin' ? 'hiddenInset' : 'hidden'),
         webPreferences: {
-            nodeIntegration: true,
-            contextIsolation: false,
-            webSecurity: true
+            nodeIntegration: false,
+            contextIsolation: true,
+            webSecurity: true,
+            preload: path.join(__dirname, 'preload.js')
         }
     })
 
@@ -206,17 +214,22 @@ ipcMain.on('add-torrent', async (e, rawId) => {
         if (!webTorrentClient || !torrentId) return;
 
         console.log('[IPC] Adding:', torrentId);
+        if (mainWindow) mainWindow.webContents.send('adding-torrent');
 
         // --- STEP 1: FIX FOR THE 0x3a ERROR ---
         // If it's a web URL, we download it to a Buffer so WebTorrent doesn't choke
         if (torrentId.startsWith('http')) {
             try {
-                const response = await axios.get(torrentId, { responseType: 'arraybuffer' });
+                const response = await axios.get(torrentId, { 
+                    responseType: 'arraybuffer', 
+                    timeout: 15000,
+                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
+                });
                 torrentId = Buffer.from(response.data); 
                 console.log('[System] URL converted to Buffer successfully.');
             } catch (fetchErr) {
                 console.error('[Fetch Error]:', fetchErr.message);
-                if (mainWindow) mainWindow.webContents.send('torrent-error', null, "Failed to download torrent file");
+                if (mainWindow) mainWindow.webContents.send('torrent-error', null, "Failed to fetch torrent payload: " + fetchErr.message);
                 return;
             }
         }
@@ -288,8 +301,15 @@ ipcMain.on('open-torrent', async (e, frontendData) => {
             
             const videoFile = activeTorrent.files.reduce((p, c) => p.length > c.length ? p : c);
             
-            let mime = 'video/mp4';
             const ext = path.extname(videoFile.name).toLowerCase();
+            const isVideo = ['.mp4','.mkv','.avi','.webm','.mov'].includes(ext);
+            
+            if (!isVideo) {
+                shell.showItemInFolder(path.join(activeTorrent.path, videoFile.path));
+                return;
+            }
+            
+            let mime = 'video/mp4';
             if (ext === '.mkv') mime = 'video/x-matroska';
             if (ext === '.webm') mime = 'video/webm';
 
@@ -358,10 +378,12 @@ ipcMain.on('open-torrent', async (e, frontendData) => {
 
 
 ipcMain.on('show-app-options', (e, point) => {
+    if (point) { point.x = Math.round(point.x); point.y = Math.round(point.y); }
     createAppOptionsMenu(point)
 })
 
 ipcMain.on('show-torrent-options', (e, torrent, point) => {
+    if (point) { point.x = Math.round(point.x); point.y = Math.round(point.y); }
     createTorrentOptionsMenu(torrent, point)
 })
 
@@ -403,12 +425,19 @@ function finish() {
         magnetURI: torrent.magnetURI,
         paused: torrent.paused,
         done: torrent.done,
-        path: torrent.path
+        path: torrent.path,
+        torrentFileBase64: torrent.torrentFile ? torrent.torrentFile.toString('base64') : null
     }))
     settings['appearance'] = nativeTheme.themeSource
     fs.writeFileSync(path.join(app.getPath('userData'), 'History.json'), JSON.stringify(torrents))
     fs.writeFileSync(path.join(app.getPath('userData'), 'Settings.json'), JSON.stringify(settings))
-    webTorrentClient.destroy((error) => app.quit())
+    
+    const destroyResult = webTorrentClient.destroy();
+    if (destroyResult && typeof destroyResult.then === 'function') {
+        destroyResult.then(() => app.quit()).catch(() => app.quit());
+    } else {
+        app.quit();
+    }
 }
 
 function createAppearanceMenu() {
@@ -671,15 +700,42 @@ function deleteAllTransfers(menuItem, browserWindow, event) {
 }
 
 function updateTorrents() {
-    let torrents = webTorrentClient.torrents.map((torrent) => ({
-        name: torrent.name, infoHash: torrent.infoHash, magnetURI: torrent.magnetURI,
-        timeRemaining: torrent.timeRemaining, received: torrent.received, downloaded: torrent.downloaded, uploaded: torrent.uploaded,
-        downloadSpeed: torrent.downloadSpeed, uploadSpeed: torrent.uploadSpeed, progress: torrent.progress, path: torrent.path,
-        ready: torrent.ready, paused: torrent.paused, done: torrent.done, length: torrent.length, source: torrent.source || 'session',
-        numPeers: torrent.numPeers,
-        // FIX: Safely check if torrent.name exists before joining path to prevent crash
-        error: (torrent.name && !fs.existsSync(path.join(torrent.path, torrent.name))) ? `Target folder/file does not exist` : undefined
-    }))
+    let anyActiveDownload = false;
+    let anySeeding = false;
+
+    let torrents = webTorrentClient.torrents.map((torrent) => {
+        let type = 'unknown';
+        if (torrent.files && torrent.files.length > 0) {
+            const exts = torrent.files.map(f => path.extname(f.name).toLowerCase());
+            if (exts.some(e => ['.mp4','.mkv','.avi','.webm','.mov'].includes(e))) type = 'video';
+            else if (exts.some(e => ['.exe','.iso','.dmg','.appimage','.msi'].includes(e))) type = 'program';
+            else if (exts.some(e => ['.mp3','.flac','.wav','.m4a'].includes(e))) type = 'audio';
+            else if (exts.some(e => ['.zip','.rar','.7z','.tar','.gz'].includes(e))) type = 'archive';
+        }
+        
+        if (!torrent.paused) {
+            if (!torrent.done) anyActiveDownload = true;
+            else anySeeding = true;
+        }
+
+        return {
+            name: torrent.name, infoHash: torrent.infoHash, magnetURI: torrent.magnetURI,
+            timeRemaining: torrent.timeRemaining, received: torrent.received, downloaded: torrent.downloaded, uploaded: torrent.uploaded,
+            downloadSpeed: torrent.downloadSpeed, uploadSpeed: torrent.uploadSpeed, progress: torrent.progress, path: torrent.path,
+            ready: torrent.ready, paused: torrent.paused, done: torrent.done, length: torrent.length, source: torrent.source || 'session',
+            numPeers: torrent.numPeers, fileType: type,
+            // FIX: Safely check if torrent.name exists before joining path to prevent crash
+            error: (torrent.name && !fs.existsSync(path.join(torrent.path, torrent.name))) ? `Target folder/file does not exist` : undefined
+        }
+    })
+
+    // Smart Adaptive Bandwidth Throttling
+    if (typeof webTorrentClient.throttleUpload === 'function') {
+        if (anyActiveDownload) webTorrentClient.throttleUpload(-1); // Lift locks for inbound swarm piece exchange
+        else if (anySeeding) webTorrentClient.throttleUpload(20490); // Hardcap SEEDS OVER UPLINK at strictly 20.01 KB/s
+        else webTorrentClient.throttleUpload(-1); 
+    }
+
     mainWindow.webContents.send('update-torrents', torrents || [])
 }
 

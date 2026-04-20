@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BitBuccaneer Engine | System Interface</title>
+    <title>HeapSeed Engine | System Interface</title>
 
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; connect-src 'self' http://localhost:* ws: wss:; img-src 'self' data:; media-src 'self' http://localhost:* blob:;">
 
@@ -279,18 +279,21 @@
         #video-container { width: 100%; border-radius: 12px; overflow: hidden; margin-bottom: 20px; }
         .hidden { display: none !important; }
 
-        .torrent-node {
-            background: rgba(255,255,255,0.05); border-radius: 8px; padding: 12px; margin-bottom: 8px; border-left: 3px solid #3498db;
+        .torrent {
+            background: rgba(255,255,255,0.05); border-radius: 8px; padding: 12px; margin-bottom: 8px; border-left: 3px solid #3498db; list-style: none;
         }
-        .torrent-node.done { border-left-color: #2ecc71; }
-        .torrent-node.error { border-left-color: #e74c3c; }
+        .torrent.downloaded { border-left-color: #2ecc71; }
+        .torrent.error { border-left-color: #e74c3c; }
+        .torrent.selected { background: rgba(255,255,255,0.15); border-left-color: white; }
         
-        .t-name { font-size: 13px; color: white; font-weight: 600; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .t-meta { font-size: 11px; color: #a0aec0; margin-bottom: 6px; }
+        .torrent-name { display: block; font-size: 13px; color: white; font-weight: 600; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .torrent-meta { display: block; font-size: 11px; color: #a0aec0; margin-bottom: 6px; }
         
-        .progress-bg { background: rgba(255,255,255,0.1); height: 4px; border-radius: 2px; overflow: hidden; }
-        .progress-fill { background: #3498db; height: 100%; width: 0%; transition: width 0.3s; }
-        .torrent-node.done .progress-fill { background: #2ecc71; width: 100%; }
+        .progress-bar-bg { background: rgba(255,255,255,0.1); height: 4px; border-radius: 2px; overflow: hidden; }
+        .progress-bar-fill { background: #3498db; height: 100%; width: 0%; transition: width 0.3s; }
+        .torrent.downloaded .progress-bar-fill { background: #2ecc71; width: 100%; }
+        
+        #torrent-list { list-style: none; padding: 0; margin: 0; }
 
         /* History Dropdown */
         .history-dropdown {
@@ -306,6 +309,7 @@
         .empty-icon { font-size: 48px; margin-bottom: 16px; }
         .empty-title { color: white; margin-bottom: 8px; }
         .empty-text { color: rgba(255,255,255,0.5); font-size: 14px; }
+        #message { color: #ffeb3b; text-shadow: 0 0 8px rgba(255, 235, 59, 0.8), 0 0 16px rgba(255, 235, 59, 0.5); font-weight: 600; font-size: 13px; }
     </style>
 </head>
 <body>
@@ -328,15 +332,15 @@
 
             </div>
             <div class="window-controls">
-                <button class="control-btn" onclick="showAppOptionsMenu(this)" title="System Options">
+                <button class="control-btn" id="app-options-btn" title="System Options">
                     <svg viewBox="0 0 24 24"><path d="m11.998 2c5.517 0 9.997 4.48 9.997 9.998 0 5.517-4.48 9.997-9.997 9.997-5.518 0-9.998-4.48-9.998-9.997 0-5.518 4.48-9.998 9.998-9.998zm0 1.5c-4.69 0-8.498 3.808-8.498 8.498s3.808 8.497 8.498 8.497 8.497-3.807 8.497-8.497-3.807-8.498-8.497-8.498zm2.502 8.495c0-.69.56-1.25 1.25-1.25s1.25.56 1.25 1.25-.56 1.25-1.25 1.25-1.25-.56-1.25-1.25zm-3.75 0c0-.69.56-1.25 1.25-1.25s1.25.56 1.25 1.25-.56 1.25-1.25 1.25-1.25-.56-1.25-1.25zm-3.75 0c0-.69.56-1.25 1.25-1.25s1.25.56 1.25 1.25-.56 1.25-1.25 1.25-1.25-.56-1.25-1.25z"/></svg>
                 </button>
-                <button class="control-btn" onclick="openDownloadsFolder()" title="Target Directory">
+                <button class="control-btn" id="open-downloads" title="Target Directory">
                     <svg viewBox="0 0 24 24"><path d="m6.864 3.424c.502-.301 1.136.063 1.136.642 0 .264-.138.509-.365.644-2.476 1.486-4.135 4.197-4.135 7.292 0 4.691 3.808 8.498 8.498 8.498s8.497-3.807 8.497-8.498c0-3.093-1.656-5.803-4.131-7.289-.225-.136-.364-.38-.364-.644 0-.582.635-.943 1.137-.642 2.91 1.748 4.858 4.936 4.858 8.575 0 5.519-4.479 9.998-9.997 9.998s-9.998-4.479-9.998-9.998c0-3.641 1.951-6.83 4.864-8.578zm.831 8.582s2.025 2.021 3.779 3.774c.147.147.339.22.53.22.192 0 .384-.073.531-.22 1.753-1.752 3.779-3.775 3.779-3.775.145-.145.217-.336.217-.526 0-.192-.074-.384-.221-.531-.292-.293-.766-.294-1.056-.004l-2.5 2.499v-10.693c0-.414-.336-.75-.75-.75s-.75.336-.75.75v10.693l-2.498-2.498c-.289-.289-.762-.286-1.054.006-.147.147-.221.339-.222.531 0 .19.071.38.215.524z"/></svg>
                 </button>
-                <button class="control-btn" onclick="minimize()">—</button>
-                <button class="control-btn" onclick="maximize()">□</button>
-                <button class="control-btn" onclick="closeWindow()" style="color: #ff7878;">✕</button>
+                <button class="control-btn" id="btn-minimize">—</button>
+                <button class="control-btn" id="btn-maximize">□</button>
+                <button class="control-btn" id="btn-close" style="color: #ff7878;">✕</button>
             </div>
         </div>
     </div>
@@ -396,11 +400,10 @@
 
                 <div class="monitor-card">
                     <div class="monitor-header">Active Operations</div>
-                    <div id="torrent-list">
-                        <div class="empty-state" style="padding: 20px;">
-                            <p class="empty-text" style="font-size: 12px;">No active peer connections.</p>
-                        </div>
+                    <div class="empty-state" id="message" style="padding: 20px;">
+                        <p class="empty-text" style="font-size: 12px;">No active peer connections.</p>
                     </div>
+                    <ul id="torrent-list"></ul>
                 </div>
             </div>
 
@@ -411,13 +414,10 @@
         /**
          * IPC & CORE INIT
          */
-        const { ipcRenderer, clipboard } = require('electron');
-        
         let allResults = [];
         let currentCategory = 'all';
         let currentSort = 'seeders';
         let enabledSources = ['YTS', 'Nyaa', 'LimeTorrents', 'TorrentDownloads'];
-        let plyrInstance = null;
 
         const BYTE_GB = 1073741824, BYTE_MB = 1048576, BYTE_KB = 1024;
 
@@ -456,7 +456,7 @@
 
             // Direct Magnet/URL interception
             if (input.startsWith('magnet:') || (input.startsWith('http') && input.includes('.torrent'))) {
-                ipcRenderer.send('add-torrent', input);
+                window.api.addTorrent(input);
                 document.getElementById('searchInput').value = '';
                 return;
             }
@@ -466,7 +466,7 @@
             document.getElementById('resultsContainer').innerHTML = '<div class="empty-state"><p class="empty-text">Resolving metadata across nodes...</p></div>';
 
             try {
-                const result = await ipcRenderer.invoke('search-torrents', input, currentCategory);
+                const result = await window.api.searchTorrents(input, currentCategory);
                 if (result.success) {
                     allResults = result.torrents;
                     applyFiltersAndRender();
@@ -497,11 +497,19 @@
                 return;
             }
 
-            document.getElementById('resultsContainer').innerHTML = filtered.map(r => `
+            document.getElementById('resultsContainer').innerHTML = filtered.map(r => {
+                const ln = (r.name || '').toLowerCase();
+                let icon = '📄';
+                if (r.category === 'movies' || r.category === 'tv' || r.category === 'anime' || ln.includes('.mp4') || ln.includes('1080p') || ln.includes('720p')) icon = '🎬';
+                else if (ln.includes('.exe') || ln.includes('crack') || ln.includes('patch') || ln.includes('vst') || r.category === 'software') icon = '💻';
+                else if (r.category === 'music' || ln.includes('flac') || ln.includes('mp3')) icon = '🎵';
+                else if (ln.includes('.zip') || ln.includes('.iso')) icon = '📦';
+
+                return `
                 <div class="result-item">
                     <div class="result-content">
                         <div class="result-info">
-                            <div class="result-title">${escapeHtml(r.name)}</div>
+                            <div class="result-title">${icon} ${escapeHtml(r.name)}</div>
                             <div class="result-meta">
                                 <span><span class="dot green"></span> ${r.seeders || 0}</span>
                                 <span><span class="dot red"></span> ${r.leechers || 0}</span>
@@ -510,17 +518,17 @@
                             </div>
                         </div>
                         <div class="btn-group">
-                            <button class="action-btn btn-init" onclick="initiatePayload('${r.magnetLink}')">🚀 Initialize</button>
-                            <button class="action-btn btn-magnet" onclick="copyMagnet('${r.magnetLink}')">📋 Copy URI</button>
+                            <button class="action-btn btn-init" data-magnet="${escapeHtml(r.magnetLink)}" onclick="initiatePayload(this.getAttribute('data-magnet'))">🚀 Initialize</button>
+                            <button class="action-btn btn-magnet" data-magnet="${escapeHtml(r.magnetLink)}" onclick="copyMagnet(this.getAttribute('data-magnet'))">📋 Copy URI</button>
                         </div>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
         }
 
         // Action Handlers
-        function initiatePayload(magnet) { ipcRenderer.send('add-torrent', magnet); }
-        function copyMagnet(magnet) { clipboard.writeText(magnet); }
+        function initiatePayload(magnet) { window.api.addTorrent(magnet); }
+        function copyMagnet(magnet) { navigator.clipboard.writeText(magnet); }
         function handleReset() { document.getElementById('searchInput').value = ''; allResults = []; applyFiltersAndRender(); }
         
         // Mutators
@@ -543,76 +551,7 @@
             return (bytes / BYTE_KB).toFixed(2) + ' KB';
         }
 
-        // --- WINDOW IPC ---
-        function showAppOptionsMenu(el) { const rect = el.getBoundingClientRect(); ipcRenderer.send('show-app-options', { x: rect.x, y: rect.y }); }
-        function openDownloadsFolder() { ipcRenderer.send('open-downloads-folder'); }
-        function minimize() { ipcRenderer.send('minimize:main-window'); }
-        function maximize() { ipcRenderer.send('maximize:main-window'); }
-        function closeWindow() { ipcRenderer.send('close:main-window'); }
 
-        // --- DOWNLOAD MANAGER IPC ---
-        const tList = document.getElementById('torrent-list');
-
-        ipcRenderer.on('start-plyr-stream', (e, streamUrl, mimeType) => {
-            document.getElementById('video-container').classList.remove('hidden');
-            if (!plyrInstance) plyrInstance = new Plyr('#player', { controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'fullscreen'] });
-            plyrInstance.source = { type: 'video', sources: [{ src: streamUrl, type: mimeType || 'video/mp4' }] };
-            plyrInstance.play().catch(console.error);
-        });
-
-        ipcRenderer.on('update-torrents', (e, activeTorrents) => {
-            if (!activeTorrents.length) {
-                tList.innerHTML = '<div class="empty-state" style="padding: 20px;"><p class="empty-text" style="font-size: 12px;">No active peer connections.</p></div>';
-                return;
-            }
-            // Clear empty state if exists
-            if (tList.querySelector('.empty-state')) tList.innerHTML = '';
-
-            activeTorrents.forEach(t => {
-                let node = document.getElementById(`hash-${t.infoHash}`);
-                if (!node) {
-                    node = document.createElement('div');
-                    node.id = `hash-${t.infoHash}`;
-                    node.className = 'torrent-node';
-                    node.innerHTML = `
-                        <div class="t-name">${escapeHtml(t.name) || 'Resolving Hash...'}</div>
-                        <div class="t-meta">Handshaking...</div>
-                        <div class="progress-bg"><div class="progress-fill"></div></div>
-                    `;
-                    node.oncontextmenu = (ev) => ipcRenderer.send('show-torrent-options', t, { x: ev.clientX, y: ev.clientY });
-                    node.ondblclick = () => ipcRenderer.send('open-torrent', t);
-                    tList.prepend(node);
-                }
-
-                const nameEl = node.querySelector('.t-name');
-                const metaEl = node.querySelector('.t-meta');
-                const progEl = node.querySelector('.progress-fill');
-                
-                if (t.name && nameEl.textContent.includes('Resolving')) nameEl.textContent = t.name;
-                
-                const percent = (t.progress * 100).toFixed(1);
-                progEl.style.width = `${percent}%`;
-
-                if (t.error) {
-                    node.className = 'torrent-node error';
-                    metaEl.textContent = `Error: ${t.error}`;
-                } else if (t.done) {
-                    node.className = 'torrent-node done';
-                    metaEl.textContent = `Completed | ${formatBytes(t.length)}`;
-                } else if (t.paused) {
-                    node.className = 'torrent-node';
-                    metaEl.textContent = `Paused | ${percent}%`;
-                } else {
-                    node.className = 'torrent-node';
-                    metaEl.textContent = `↓ ${formatBytes(t.downloadSpeed)}/s | ${percent}%`;
-                }
-            });
-        });
-
-        ipcRenderer.on('remove-torrent', (e, hash) => {
-            const node = document.getElementById(`hash-${hash}`);
-            if (node) node.remove();
-        });
 
     </script>
 </body>

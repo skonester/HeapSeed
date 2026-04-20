@@ -148,7 +148,9 @@
 
         const name = document.createElement('span');
         name.className = 'torrent-name';
-        name.textContent = torrentData.name || 'Resolving Metadata Pool...';
+        const icons = { video: '🎬', program: '💻', audio: '🎵', archive: '📦', unknown: '📄' };
+        const icon = icons[torrentData.fileType] || icons.unknown;
+        name.textContent = torrentData.name ? `${icon} ${torrentData.name}` : 'Resolving Metadata Pool...';
 
         const meta = document.createElement('span');
         meta.className = 'torrent-meta';
@@ -206,7 +208,9 @@
       const pBar = li.querySelector('.progress-bar-fill');
 
       if (torrentData.name && nameEl && nameEl.textContent === 'Resolving Metadata Pool...') {
-        nameEl.textContent = torrentData.name;
+        const icons = { video: '🎬', program: '💻', audio: '🎵', archive: '📦', unknown: '📄' };
+        const icon = icons[torrentData.fileType] || icons.unknown;
+        nameEl.textContent = `${icon} ${torrentData.name}`;
       }
 
       const progress = Math.max(0, Math.min(1, Number(torrentData.progress) || 0));
@@ -222,14 +226,20 @@
         li.classList.add('error');
         if (metaEl) metaEl.textContent = `Fatal Error: ${safeText(torrentData.error)}`;
         
-      } else if (torrentData.done) {
-        li.classList.add('downloaded');
-        if (metaEl) metaEl.textContent = `Status: Seed Complete | Payload: ${formatDataSize(Number(torrentData.length) || 0)}\n(Double-click to Play/Open | Right-click for Options)`;
-        
       } else if (torrentData.paused) {
         li.classList.add('stopped');
-        if (metaEl) metaEl.textContent = `Status: Inactive | Progress: ${completionRatio}%`;
-        
+        if (torrentData.done) {
+          if (metaEl) metaEl.textContent = `Status: Seed Paused | Payload: ${formatDataSize(Number(torrentData.length) || 0)}`;
+        } else {
+          if (metaEl) metaEl.textContent = `Status: Inactive | Progress: ${completionRatio}%`;
+        }
+
+      } else if (torrentData.done) {
+        li.classList.add('downloaded');
+        const ratio = ((torrentData.uploaded || 0) / (torrentData.length || 1)).toFixed(2);
+        const upSpeed = formatDataSize(torrentData.uploadSpeed || 0) + '/s';
+        if (metaEl) metaEl.textContent = `Status: Seeding | Ratio: ${ratio} | UL: ${upSpeed} | Payload: ${formatDataSize(Number(torrentData.length) || 0)}`;
+
       } else {
         li.classList.add('downloading');
         
