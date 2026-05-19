@@ -1,33 +1,78 @@
 const { app, BrowserWindow, clipboard, Menu, nativeTheme, dialog, ipcMain, Notification, shell } = require('electron')
-const { autoUpdater } = require('electron-updater')
 const fs = require('fs')
 const os = require('os')
 const path = require('path')
 const soundPlay = require('sound-play')
 const http = require('http') // Native HTTP module added here
-const VERSION_CODE = 11;
+const VERSION_CODE = 12;
 const axios = require('axios'); // You might need to run: npm install axios
 
 const sintel = 'magnet:?xt=urn:btih:08ada5a7a6183aae1e09d831df6748d566095a10&dn=Sintel&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2F&xs=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2Fsintel.torrent'
 const sampleItems = [sintel]
 
-const build_date = '2026.4.20'
+const build_date = '2026.5.19'
 
 // Hardened Process Guard
 process.on('unhandledRejection', (reason) => console.log('[System] Swallowed Unhandled Rejection:', reason?.message || reason));
 process.on('uncaughtException', (err) => console.log('[System] Swallowed Uncaught Exception:', err?.message || err));
 
 // Global State Registry
-let webTorrentClient, moveToTrash
+let webTorrentClient, moveToTrash, autoUpdater
 let mainWindow
 let interval
 let deepLinkUrl
 let settings
 
+function isInfoHash(value) {
+    return typeof value === 'string' && /^[a-fA-F0-9]{40}$/.test(value.trim())
+}
+
+function isMagnetURI(value) {
+    return typeof value === 'string' && value.trim().startsWith('magnet:?xt=urn:btih:')
+}
+
+function isHttpTorrentURL(value) {
+    return typeof value === 'string' && /^https?:\/\//i.test(value.trim()) && value.toLowerCase().includes('.torrent')
+}
+
+function getValidTorrentIdentifier(value) {
+    if (Buffer.isBuffer(value)) return value.length > 0 ? value : null
+    if (isMagnetURI(value) || isInfoHash(value) || isHttpTorrentURL(value)) return value.trim()
+    return null
+}
+
+function decodeSavedTorrentFile(value) {
+    if (typeof value !== 'string' || value.length === 0) return null
+    if (!/^[A-Za-z0-9+/]+={0,2}$/.test(value) || value.length % 4 !== 0) return null
+
+    try {
+        const buffer = Buffer.from(value, 'base64')
+        return buffer.length > 0 ? buffer : null
+    } catch (err) {
+        return null
+    }
+}
+
+function getHistoryAddPayload(entry) {
+    const torrentFile = decodeSavedTorrentFile(entry?.torrentFileBase64)
+    if (torrentFile) return torrentFile
+    return getValidTorrentIdentifier(entry?.magnetURI) || getValidTorrentIdentifier(entry?.infoHash)
+}
+
+function safeReadJson(filePath, fallback) {
+    try {
+        if (fs.existsSync(filePath) === false) return fallback
+        return JSON.parse(fs.readFileSync(filePath))
+    } catch (err) {
+        console.log('[System] Ignoring unreadable JSON:', filePath, err?.message || err)
+        return fallback
+    }
+}
+
 // Single-instance lock
 if (app.requestSingleInstanceLock()) {
     app.on('second-instance', (e, argv, workingDir, data) => {
-        let url = argv.pop()
+        let url = getValidTorrentIdentifier(argv.pop())
         if (app.isReady() && webTorrentClient && url) {
             webTorrentClient.add(url, { path: settings['download_path'] })
         } else {
@@ -43,6 +88,12 @@ if (app.requestSingleInstanceLock()) {
  * Uses dynamic ESM imports for WebTorrent (2.x+ compatibility) and trash.
  */
 app.whenReady().then(() => Promise.all([import('webtorrent'), import('trash')])).then(([WebTorrent, trash]) => {
+    try {
+        autoUpdater = require('electron-updater').autoUpdater
+    } catch (err) {
+        console.log('[Updater] Disabled:', err?.message || err)
+    }
+
     // ENGINE INITIALIZATION - optimized DHT/Tracker settings
     webTorrentClient = new WebTorrent.default({
         maxConns: 55,
@@ -55,64 +106,74 @@ app.whenReady().then(() => Promise.all([import('webtorrent'), import('trash')]))
     moveToTrash = trash.default
 
     // Load or initialize settings
-    if (fs.existsSync(path.join(app.getPath('userData'), 'Settings.json'))) {
-        settings = JSON.parse(fs.readFileSync(path.join(app.getPath('userData'), 'Settings.json')))
-    } else {
-        settings = {
-            'appearance': 'system',
-            'download_path': path.join(app.getPath('downloads'), 'HeapSeed'),
-            'last_cfu': 0,
-            'new_version': {
-                vc: VERSION_CODE,
-                vn: app.getVersion()
-            },
-            'on_torrent_done': 'mag_sound',
-        }
+    settings = {
+        'appearance': 'system',
+        'download_path': path.join(app.getPath('downloads'), 'HeapSeed'),
+        'last_cfu': 0,
+        'new_version': {
+            vc: VERSION_CODE,
+            vn: app.getVersion()
+        },
+        'on_torrent_done': 'mag_sound',
+        ...safeReadJson(path.join(app.getPath('userData'), 'Settings.json'), {})
     }
 
     // Ensure download directory exists
     if (fs.existsSync(settings['download_path']) === false) {
-        fs.mkdirSync(settings['download_path'])
-    }
-
-    // Restore session from History.json
-    if (fs.existsSync(path.join(app.getPath('userData'), 'History.json'))) {
-        let torrentJson = JSON.parse(fs.readFileSync(path.join(app.getPath('userData'), 'History.json')))
-        let joinPath = path.join
-        torrentJson.forEach(({ magnetURI, name, path, paused, torrentFileBase64 }) => {
-            let addPayload = magnetURI;
-            if (torrentFileBase64) {
-                try { addPayload = Buffer.from(torrentFileBase64, 'base64'); } catch (err) {}
-            }
-            let torrent = webTorrentClient.add(addPayload, { path: path }, (torrent) => {
-                torrent.source = 'history'
-                if (paused) torrent.pause()
-            })
-            if (fs.existsSync(joinPath(path, name)) === false) {
-                torrent.error = '123'
-                torrent.pause()
-            }
-        })
-        if (deepLinkUrl) {
-            webTorrentClient.add(deepLinkUrl, { path: settings['download_path'] })
-            deepLinkUrl = undefined
-        }
+        fs.mkdirSync(settings['download_path'], { recursive: true })
     }
 
     createAppMenu()
     createMainWindow()
 
+    // Restore session from History.json
+    {
+        let torrentJson = safeReadJson(path.join(app.getPath('userData'), 'History.json'), [])
+        let joinPath = path.join
+        if (!Array.isArray(torrentJson)) torrentJson = []
+        torrentJson.forEach((entry) => {
+            try {
+                const { name, path: downloadPath, paused } = entry
+                const addPayload = getHistoryAddPayload(entry)
+                const targetPath = typeof downloadPath === 'string' && downloadPath.length ? downloadPath : settings['download_path']
+                if (!addPayload) {
+                    console.log('[History] Skipping invalid saved torrent:', entry?.name || entry?.infoHash || 'unknown')
+                    return
+                }
+                let torrent = webTorrentClient.add(addPayload, { path: targetPath }, (torrent) => {
+                    torrent.source = 'history'
+                    if (paused) torrent.pause()
+                })
+                if (name && fs.existsSync(joinPath(targetPath, name)) === false) {
+                    torrent.error = 'Target folder/file does not exist'
+                    torrent.pause()
+                }
+            } catch (err) {
+                console.log('[History] Skipping saved torrent:', err?.message || err)
+            }
+        })
+        if (deepLinkUrl) {
+            const deepLinkPayload = getValidTorrentIdentifier(deepLinkUrl)
+            if (deepLinkPayload) webTorrentClient.add(deepLinkPayload, { path: settings['download_path'] })
+            deepLinkUrl = undefined
+        }
+    }
+
     if (app.isDefaultProtocolClient('magnet') === false && app.isPackaged) {
         app.setAsDefaultProtocolClient('magnet')
     }
-    autoUpdater.checkForUpdatesAndNotify()
+    if (app.isPackaged && autoUpdater) {
+        autoUpdater.checkForUpdatesAndNotify().catch((err) => console.log('[Updater] Check failed:', err?.message || err))
+    }
 })
 
 app.on('open-url', (e, url) => {
-    if (app.isReady()) {
-        webTorrentClient.add(url, { path: settings['download_path'] })
+    const addPayload = getValidTorrentIdentifier(url)
+    if (!addPayload) return
+    if (app.isReady() && webTorrentClient) {
+        webTorrentClient.add(addPayload, { path: settings['download_path'] })
     } else {
-        deepLinkUrl = url
+        deepLinkUrl = addPayload
     }
 })
 
@@ -234,6 +295,13 @@ ipcMain.on('add-torrent', async (e, rawId) => {
             }
         }
 
+        torrentId = getValidTorrentIdentifier(torrentId)
+        if (!torrentId) {
+            console.warn('[IPC] Ignoring invalid torrent identifier.');
+            if (mainWindow) mainWindow.webContents.send('torrent-error', null, 'Invalid torrent identifier');
+            return;
+        }
+
         // --- STEP 2: SEARCH FOR EXISTING ---
         const existing = webTorrentClient.torrents.find(t => 
             t.infoHash === torrentId || 
@@ -285,7 +353,8 @@ ipcMain.on('open-torrent', async (e, frontendData) => {
 
         if (!activeTorrent && url) {
             console.log('[Streaming] Adding:', url);
-            activeTorrent = webTorrentClient.add(url, { path: settings['download_path'] });
+            const addPayload = getValidTorrentIdentifier(url)
+            if (addPayload) activeTorrent = webTorrentClient.add(addPayload, { path: settings['download_path'] });
         }
 
         if (!activeTorrent) {
@@ -419,25 +488,49 @@ ipcMain.on('close:main-window', () => mainWindow.close())
  * STATE SERIALIZATION & CLEANUP
  */
 function finish() {
-    let torrents = webTorrentClient.torrents.map((torrent) => ({
-        name: torrent.name,
-        infoHash: torrent.infoHash,
-        magnetURI: torrent.magnetURI,
-        paused: torrent.paused,
-        done: torrent.done,
-        path: torrent.path,
-        torrentFileBase64: torrent.torrentFile ? torrent.torrentFile.toString('base64') : null
-    }))
-    settings['appearance'] = nativeTheme.themeSource
-    fs.writeFileSync(path.join(app.getPath('userData'), 'History.json'), JSON.stringify(torrents))
-    fs.writeFileSync(path.join(app.getPath('userData'), 'Settings.json'), JSON.stringify(settings))
+    persistSession()
     
-    const destroyResult = webTorrentClient.destroy();
+    const destroyResult = webTorrentClient?.destroy();
     if (destroyResult && typeof destroyResult.then === 'function') {
         destroyResult.then(() => app.quit()).catch(() => app.quit());
     } else {
         app.quit();
     }
+}
+
+function serializeTorrent(torrent) {
+    if (!torrent || torrent.destroyed) return null
+    const torrentFileBase64 = torrent.torrentFile ? Buffer.from(torrent.torrentFile).toString('base64') : null
+    const magnetURI = getValidTorrentIdentifier(torrent.magnetURI) || null
+    const infoHash = isInfoHash(torrent.infoHash) ? torrent.infoHash : null
+
+    if (!torrentFileBase64 && !magnetURI && !infoHash) return null
+
+    return {
+        name: torrent.name,
+        infoHash,
+        magnetURI,
+        paused: torrent.paused,
+        done: torrent.done,
+        path: torrent.path || settings['download_path'],
+        torrentFileBase64
+    }
+}
+
+function persistSession() {
+    try {
+        const torrents = (webTorrentClient?.torrents || []).map(serializeTorrent).filter(Boolean)
+        settings['appearance'] = nativeTheme.themeSource
+        fs.writeFileSync(path.join(app.getPath('userData'), 'History.json'), JSON.stringify(torrents))
+        fs.writeFileSync(path.join(app.getPath('userData'), 'Settings.json'), JSON.stringify(settings))
+    } catch (err) {
+        console.log('[System] Failed to persist session:', err?.message || err)
+    }
+}
+
+function notifyTorrentRemoved(infoHash) {
+    if (mainWindow) mainWindow.webContents.send('remove-torrent', infoHash)
+    persistSession()
 }
 
 function createAppearanceMenu() {
@@ -515,9 +608,7 @@ function createAppMenu() {
                         webTorrentClient.torrents.forEach((torrent) => {
                             if (torrent.paused || torrent.done) {
                                 const infoHash = torrent.infoHash;
-                                torrent.destroy(() => {
-                                    if (mainWindow) mainWindow.webContents.send('remove-torrent', infoHash);
-                                });
+                                torrent.destroy(() => notifyTorrentRemoved(infoHash));
                             }
                         });
                     }
@@ -544,7 +635,7 @@ function createAppOptionsMenu(point) {
             click: () => {
                 webTorrentClient.torrents.forEach((torrent) => {
                     if (torrent.paused || torrent.done) {
-                        torrent.destroy(() => mainWindow.webContents.send('remove-torrent', torrent.infoHash))
+                        torrent.destroy(() => notifyTorrentRemoved(torrent.infoHash))
                     }
                 })
             }
@@ -561,6 +652,7 @@ function createAppOptionsMenu(point) {
 
 function createTorrentOptionsMenu({ infoHash }, point) {
     webTorrentClient.get(infoHash).then((torrent) => {
+        if (!torrent) return
         let torrentPath = path.join(torrent.path, torrent.name)
         let doesTorrentExist = fs.existsSync(torrentPath)
         let menu = Menu.buildFromTemplate(
@@ -573,7 +665,7 @@ function createTorrentOptionsMenu({ infoHash }, point) {
                     } else {
                         let magnetURI = torrent.magnetURI
                         torrent.destroy()
-                        mainWindow.webContents.send('remove-torrent', torrent.infoHash)
+                        notifyTorrentRemoved(torrent.infoHash)
                         webTorrentClient.add(magnetURI, { path: settings['download_path'] })
                     }
                 }
@@ -594,7 +686,7 @@ function createTorrentOptionsMenu({ infoHash }, point) {
             },
             {
                 label: 'Remove torrent',
-                click: () => torrent.destroy(() => mainWindow.webContents.send('remove-torrent', torrent.infoHash))
+                click: () => torrent.destroy(() => notifyTorrentRemoved(torrent.infoHash))
             },
             {
                 label: 'Move to ' + (process.platform === 'win32' ? 'Recycle Bin' : 'Trash'),
@@ -602,7 +694,7 @@ function createTorrentOptionsMenu({ infoHash }, point) {
                     torrent.destroy(() => {
                         let p = path.join(torrent.path, torrent.name)
                         if (fs.existsSync(p)) moveToTrash(p)
-                        mainWindow.webContents.send('remove-torrent', torrent.infoHash)
+                        notifyTorrentRemoved(torrent.infoHash)
                     })
                 }
             },
@@ -612,7 +704,7 @@ function createTorrentOptionsMenu({ infoHash }, point) {
                     torrent.destroy(() => {
                         let p = path.join(torrent.path, torrent.name)
                         if (fs.existsSync(p)) fs.rmSync(p, { recursive: true })
-                        mainWindow.webContents.send('remove-torrent', torrent.infoHash)
+                        notifyTorrentRemoved(torrent.infoHash)
                     })
                 }
             },
@@ -692,7 +784,7 @@ function deleteAllTransfers(menuItem, browserWindow, event) {
             let infoHash = torrent.infoHash
             let torrentPath = path.join(torrent.path, torrent.name)
             torrent.destroy(() => {
-                mainWindow.webContents.send('remove-torrent', infoHash)
+                notifyTorrentRemoved(infoHash)
                 if (response === 1) fs.rmSync(torrentPath, { recursive: true })
             })
         })
