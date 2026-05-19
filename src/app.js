@@ -183,7 +183,7 @@ app.on('window-all-closed', () => {
 
 nativeTheme.addListener('updated', (e) => {
     if (nativeTheme.themeSource === 'system') {
-        mainWindow.webContents.send('platform', process.platform, nativeTheme.shouldUseDarkColors)
+        mainWindow?.webContents.send('platform', process.platform, nativeTheme.shouldUseDarkColors, nativeTheme.themeSource)
     }
 })
 
@@ -223,7 +223,7 @@ function createMainWindow() {
     mainWindow.loadFile('src/view/index.html')
 
     mainWindow.webContents.on('did-finish-load', () => {
-        mainWindow.webContents.send('platform', platform, dark)
+        mainWindow.webContents.send('platform', platform, dark, nativeTheme.themeSource)
         if (interval === undefined) interval = setInterval(updateTorrents, 3000)
     })
 
@@ -471,6 +471,14 @@ ipcMain.on('open-downloads-folder', (e) => {
     shell.openPath(settings['download_path'])
 })
 
+ipcMain.on('set-appearance', (e, appearance) => {
+    if (!['system', 'light', 'dark'].includes(appearance)) return
+    nativeTheme.themeSource = appearance
+    settings['appearance'] = appearance
+    mainWindow?.webContents.send('platform', process.platform, nativeTheme.shouldUseDarkColors, nativeTheme.themeSource)
+    persistSession()
+})
+
 ipcMain.on('minimize:main-window', () => mainWindow.minimize())
 
 ipcMain.on('maximize:main-window', () => {
@@ -546,7 +554,7 @@ function createAppearanceMenu() {
             nativeTheme.themeSource = value
             settings['appearance'] = value
             item.checked = true
-            mainWindow.webContents.send('platform', process.platform, nativeTheme.shouldUseDarkColors)
+            mainWindow.webContents.send('platform', process.platform, nativeTheme.shouldUseDarkColors, nativeTheme.themeSource)
         }
     }))
 }
