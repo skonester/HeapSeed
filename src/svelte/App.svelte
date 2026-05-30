@@ -1,6 +1,10 @@
 <script>
-  import { onMount, tick } from 'svelte';
-  import Plyr from 'plyr';
+  import { onMount } from 'svelte';
+  import Topbar from './components/Topbar.svelte';
+  import SearchPane from './components/SearchPane.svelte';
+  import Sidebar from './components/Sidebar.svelte';
+  import Player from './components/Player.svelte';
+
 
   const BYTE_GB = 1073741824;
   const BYTE_MB = 1048576;
@@ -41,8 +45,7 @@
   let themeMode = 'system';
   let isDarkMode = true;
   let videoVisible = false;
-  let playerEl;
-  let player;
+  let activeStream = { url: '', mime: '', version: 0 };
 
   $: effectiveTheme = themeMode === 'system' ? (isDarkMode ? 'dark' : 'light') : themeMode;
   $: filteredResults = getFilteredResults(allResults, enabledSources, category, sortMode);
@@ -284,17 +287,7 @@
     return `${formatDataSize(torrent.downloadSpeed || 0)}/s down | ${torrent.numPeers || 0} peers | ETR ${calculateTimeRemaining(timeRemaining)}`;
   }
 
-  function startStream(streamUrl, mimeType) {
-    if (!streamUrl || !playerEl) return;
-    player ||= new Plyr(playerEl, {
-      controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'captions', 'settings', 'pip', 'fullscreen'],
-      settings: ['quality', 'speed'],
-      tooltips: { controls: true, seek: true },
-      displayDuration: true
-    });
-    player.source = { type: 'video', sources: [{ src: streamUrl, type: mimeType || 'video/mp4' }] };
-    player.play().catch(() => {});
-  }
+
 
   onMount(() => {
     loadHistory();
@@ -309,7 +302,7 @@
     });
     api.onStartPlyrStream?.(({ streamUrl, mimeType }) => {
       videoVisible = true;
-      tick().then(() => startStream(streamUrl, mimeType));
+      activeStream = { url: streamUrl, mime: mimeType, version: activeStream.version + 1 };
     });
     api.onUpdateTorrents?.((torrents) => {
       activeTorrents = Array.isArray(torrents) ? torrents : [];
@@ -343,9 +336,7 @@
       message = 'Transfer complete.';
     });
 
-    return () => {
-      if (player) player.destroy();
-    };
+    return () => {};
   });
 </script>
 
@@ -354,216 +345,68 @@
 </svelte:head>
 
 <div class="app-shell" data-theme={effectiveTheme}>
-  <header class="topbar">
-    <div class="brand-block">
-      <img src="icon.png" alt="HeapSeed" class="brand-icon">
-      <div>
-        <h1>HeapSeed Engine</h1>
-        <p>{transferStats.count} transfers · {formatDataSize(transferStats.downSpeed)}/s down · {transferStats.peers} peers</p>
-      </div>
-    </div>
-
-    <div class="top-actions">
-      <div class="theme-switch" aria-label="Theme">
-        {#each themeModes as mode}
-          <button class:active={themeMode === mode} type="button" on:click={() => setTheme(mode)}>{mode}</button>
-        {/each}
-      </div>
-
-      <div class="menu-anchor">
-        <button class="titlebar-btn" class:active={showCommandMenu} type="button" title="App menu" aria-label="App menu" on:click={() => showCommandMenu = !showCommandMenu}>
-          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.25h10v1.5H3zm0 3h10v1.5H3zm0 3h10v1.5H3z"/></svg>
-        </button>
-        {#if showCommandMenu}
-          <div class="command-menu">
-            <button type="button" on:click={pasteFromClipboard}>Paste into search</button>
-            <button type="button" on:click={openDownloads}>Open downloads folder</button>
-            <button type="button" on:click={showNativeAppOptions}>Native app options</button>
-            <div class="menu-section">
-              <span>Appearance</span>
-              {#each themeModes as mode}
-                <button class:active={themeMode === mode} type="button" on:click={() => setTheme(mode)}>{mode}</button>
-              {/each}
-            </div>
-          </div>
-        {/if}
-      </div>
-
-      <button class="titlebar-btn" type="button" title="Minimize" aria-label="Minimize" on:click={() => getApi().minimize?.()}>
-        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10v1.5H3z"/></svg>
-      </button>
-      <button class="titlebar-btn" type="button" title="Maximize" aria-label="Maximize" on:click={() => getApi().maximize?.()}>
-        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4h8v8H4zm1.5 1.5v5h5v-5z"/></svg>
-      </button>
-      <button class="titlebar-btn danger" type="button" title="Close" aria-label="Close" on:click={() => getApi().closeWindow?.()}>
-        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4.2 3.2 3.8 3.75 3.8-3.75 1 1.05L9.05 8l3.75 3.75-1 1.05L8 9.05 4.2 12.8l-1-1.05L6.95 8 3.2 4.25z"/></svg>
-      </button>
-    </div>
-  </header>
+  <Topbar
+    {transferStats}
+    {themeMode}
+    {setTheme}
+    {themeModes}
+    bind:showCommandMenu
+    {pasteFromClipboard}
+    {openDownloads}
+    {showNativeAppOptions}
+    {getApi}
+    {formatDataSize}
+  />
 
   <main class="workspace">
-    <section class="search-pane">
-      <div class="command-bar">
-        <div class="input-wrap">
-          <span class="input-label">Search or magnet URI</span>
-          <input
-            type="text"
-            bind:value={query}
-            placeholder="Movie, release, hash, magnet link, or .torrent URL"
-            on:focus={() => showHistoryMenu = searchHistory.length > 0}
-            on:blur={() => setTimeout(() => showHistoryMenu = false, 160)}
-            on:keydown={(event) => event.key === 'Enter' && handleSearch()}
-          >
-          {#if showHistoryMenu}
-            <div class="history-dropdown">
-              {#each searchHistory as item}
-                <button type="button" on:mousedown|preventDefault={() => selectHistoryItem(item)}>{item}</button>
-              {/each}
-              <button class="clear-history" type="button" on:mousedown|preventDefault={clearHistory}>Clear history</button>
-            </div>
-          {/if}
-        </div>
-
-        <button class="primary-btn" type="button" disabled={isSearching} on:click={handleSearch}>{isSearching ? 'Searching' : 'Search'}</button>
-        <button class="secondary-btn" type="button" on:click={pasteFromClipboard}>Paste</button>
-        <button class="secondary-btn" type="button" on:click={resetSearch}>Reset</button>
-      </div>
-
-      <div class="filter-strip">
-        <div class="segmented">
-          {#each categories as item}
-            <button class:active={category === item.value} type="button" on:click={() => category = item.value}>{item.label}</button>
-          {/each}
-        </div>
-        <div class="segmented compact">
-          {#each sortModes as item}
-            <button class:active={sortMode === item.value} type="button" on:click={() => sortMode = item.value}>{item.label}</button>
-          {/each}
-        </div>
-      </div>
-
-      <div class="source-strip">
-        {#each sources as source}
-          <label class:muted={!enabledSources.includes(source)}>
-            <input type="checkbox" checked={enabledSources.includes(source)} on:change={() => toggleSource(source)}>
-            <span>{sourceLabels[source] || source}</span>
-          </label>
-        {/each}
-      </div>
-
-      <div class="results-head">
-        <div>
-          <strong>{filteredResults.length}</strong>
-          <span>{filteredResults.length === 1 ? 'result' : 'results'}</span>
-        </div>
-        {#if searchError}
-          <p class="inline-error">{searchError}</p>
-        {:else if isSearching}
-          <p>Scanning providers...</p>
-        {:else}
-          <p>{query ? 'Filtered and ready.' : 'Ready for a search or direct torrent URI.'}</p>
-        {/if}
-      </div>
-
-      <div class="results-list">
-        {#if isSearching}
-          <div class="empty-state">
-            <strong>Searching providers</strong>
-            <span>Results will stream into this surface once the backend returns.</span>
-          </div>
-        {:else if filteredResults.length}
-          {#each filteredResults as result}
-            <article class="result-row">
-              <div class="type-badge">{getResultType(result)}</div>
-              <div class="result-main">
-                <h2>{result.name}</h2>
-                <div class="result-meta">
-                  <span>{result.source}</span>
-                  <span>{result.size || 'N/A'}</span>
-                  <span>{result.seeders || 0} seeders</span>
-                  <span>{result.leechers || 0} leechers</span>
-                </div>
-              </div>
-              <div class="row-actions">
-                <button class="primary-btn small" type="button" on:click={() => initiatePayload(result.magnetLink)}>Add</button>
-                <button class="secondary-btn small" type="button" on:click={() => copyMagnet(result.magnetLink)}>Copy</button>
-              </div>
-            </article>
-          {/each}
-        {:else}
-          <div class="empty-state">
-            <strong>Nothing queued in search</strong>
-            <span>Use the command bar above to scan sources or paste a torrent identifier directly.</span>
-          </div>
-        {/if}
-      </div>
-    </section>
+    <SearchPane
+      bind:query
+      bind:showHistoryMenu
+      {searchHistory}
+      {isSearching}
+      bind:category
+      bind:sortMode
+      bind:enabledSources
+      {categories}
+      {sortModes}
+      {sources}
+      {sourceLabels}
+      {filteredResults}
+      {searchError}
+      {handleSearch}
+      {selectHistoryItem}
+      {clearHistory}
+      {pasteFromClipboard}
+      {resetSearch}
+      {toggleSource}
+      {getResultType}
+      {initiatePayload}
+      {copyMagnet}
+    />
 
     <aside class="activity-pane">
-      <section class:active={videoVisible} class="player-panel">
-        <video bind:this={playerEl} id="player" playsinline controls crossorigin="anonymous"></video>
-        {#if !videoVisible}
-          <div class="player-empty">
-            <span>Player ready</span>
-            <strong>{selectedTorrent?.name || 'Select a transfer to stream'}</strong>
-            <button class="primary-btn small" type="button" disabled={!selectedTorrent} on:click={() => openTorrent(selectedTorrent)}>Open or stream selected</button>
-          </div>
-        {/if}
-      </section>
+      <Player
+        bind:videoVisible
+        {selectedTorrent}
+        {openTorrent}
+        {activeStream}
+      />
 
-      <section class="stats-strip">
-        <div><span>Active</span><strong>{transferStats.downloading}</strong></div>
-        <div><span>Seeding</span><strong>{transferStats.seeding}</strong></div>
-        <div><span>Upload</span><strong>{formatDataSize(transferStats.upSpeed)}/s</strong></div>
-      </section>
-
-      <section class="transfer-panel">
-        <div class="panel-head">
-          <h2>Transfers</h2>
-          <button class="secondary-btn small" type="button" on:click={openDownloads}>Folder</button>
-        </div>
-
-        {#if message || activeTorrents.length === 0}
-          <div class="status-message">{message || 'No active peer connections.'}</div>
-        {/if}
-
-        <ul class="transfer-list">
-          {#each activeTorrents as torrent (torrent.infoHash)}
-            {@const progress = Math.max(0, Math.min(1, Number(torrent.progress) || 0))}
-            {@const tone = torrentTone(torrent)}
-            <li class:current={selectedInfoHash === torrent.infoHash} data-tone={tone}>
-              <button
-                type="button"
-                on:click={() => selectedInfoHash = torrent.infoHash}
-                on:dblclick={() => openTorrent(torrent)}
-                on:contextmenu={(event) => showTorrentOptions(event, torrent)}
-              >
-                <span class="transfer-top">
-                  <strong>{torrent.name || 'Resolving metadata'}</strong>
-                  <em>{torrentStatus(torrent)}</em>
-                </span>
-                <span class="transfer-detail">{torrentDetail(torrent)}</span>
-                <span class="progress-track"><span style={`width: ${progress * 100}%`}></span></span>
-              </button>
-            </li>
-          {/each}
-        </ul>
-      </section>
-
-      <section class="details-panel">
-        <h2>Selected</h2>
-        {#if selectedTorrent}
-          <strong>{selectedTorrent.name || 'Resolving metadata'}</strong>
-          <dl>
-            <div><dt>Status</dt><dd>{torrentStatus(selectedTorrent)}</dd></div>
-            <div><dt>Size</dt><dd>{formatDataSize(selectedTorrent.length || 0)}</dd></div>
-            <div><dt>Path</dt><dd>{selectedTorrent.path || 'Pending'}</dd></div>
-          </dl>
-          <button class="primary-btn" type="button" on:click={() => openTorrent(selectedTorrent)}>Open or stream</button>
-        {:else}
-          <p>No transfer selected.</p>
-        {/if}
-      </section>
+      <Sidebar
+        {transferStats}
+        {activeTorrents}
+        bind:selectedInfoHash
+        {selectedTorrent}
+        {message}
+        {formatDataSize}
+        {openDownloads}
+        {openTorrent}
+        {showTorrentOptions}
+        {torrentTone}
+        {torrentStatus}
+        {torrentDetail}
+      />
     </aside>
   </main>
 </div>
+

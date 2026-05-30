@@ -144,6 +144,16 @@ app.whenReady().then(() => Promise.all([import('webtorrent'), import('trash')]))
                     torrent.source = 'history'
                     if (paused) torrent.pause()
                 })
+                
+                torrent.on('error', (err) => {
+                    console.error('[History Torrent Error]:', err.message);
+                    torrent.error = err.message || 'Torrent error';
+                    torrent.pause();
+                    if (mainWindow) {
+                        mainWindow.webContents.send('torrent-error', torrent.infoHash, err.message);
+                    }
+                });
+
                 if (name && fs.existsSync(joinPath(targetPath, name)) === false) {
                     torrent.error = 'Target folder/file does not exist'
                     torrent.pause()
@@ -856,7 +866,10 @@ function onTorrent(torrent) {
 }
 
 function onError(error) {
-    dialog.showErrorBox('Error', 'An error occurred.\n' + error)
+    console.error('[WebTorrent Client Error]:', error?.message || error);
+    if (mainWindow) {
+        mainWindow.webContents.send('torrent-error', null, error?.message || String(error));
+    }
 }
 
 function checkForUpdate(now) {
