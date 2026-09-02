@@ -3,6 +3,18 @@
 A high-performance, open-source BitTorrent client engineered for real-time MP4 video previewing.
 
 <p align="center">
+  <a href="https://github.com/skonester/heapseed/releases/latest">
+    <img src="https://img.shields.io/github/v/release/skonester/heapseed?style=for-the-badge&color=7289da" alt="Latest Release">
+  </a>
+  <a href="https://github.com/skonester/heapseed/releases">
+    <img src="https://img.shields.io/github/downloads/skonester/heapseed/total?style=for-the-badge&color=43b581" alt="Total Downloads">
+  </a>
+  <a href="https://github.com/skonester/heapseed/releases/latest">
+    <img src="https://img.shields.io/badge/Download-Latest%20Release-blue?style=for-the-badge" alt="Download Latest Release">
+  </a>
+</p>
+
+<p align="center">
   <img src="build/icon.png" alt="HeapSeed Logo" width="128">
 </p>
 
