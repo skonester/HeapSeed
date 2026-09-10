@@ -15,6 +15,12 @@ A high-performance, open-source BitTorrent client engineered for real-time MP4 v
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/Platform-Windows-0078D6?style=for-the-badge&logo=windows" alt="Windows">
+  <img src="https://img.shields.io/badge/Platform-Ubuntu-E95420?style=for-the-badge&logo=ubuntu" alt="Ubuntu">
+  <img src="https://img.shields.io/badge/Architecture-x64-555555?style=for-the-badge" alt="x64">
+</p>
+
+<p align="center">
   <img src="build/icon.png" alt="HeapSeed Logo" width="128">
 </p>
 
@@ -44,6 +50,7 @@ HeapSeed leverages sequential piece prioritization and optimized data piping to 
 | Platform | Options |
 |----------|---------|
 | **Windows** | NSIS Installer (`.exe`) or Portable (`.exe`) |
+| **Ubuntu** | AppImage, DEB, and RPM packages |
 | **Linux** | AppImage, DEB, and RPM packages |
 
 [View latest releases on GitHub](https://github.com/skonester/heapseed/releases/latest)
