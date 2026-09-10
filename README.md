@@ -6,8 +6,8 @@ A high-performance, open-source BitTorrent client engineered for real-time MP4 v
   <a href="https://github.com/skonester/heapseed/releases/latest">
     <img src="https://img.shields.io/github/v/release/skonester/heapseed?style=for-the-badge&color=7289da" alt="Latest Release">
   </a>
-  <a href="https://github.com/skonester/heapseed/releases">
-    <img src="https://img.shields.io/github/downloads/skonester/heapseed/total?style=for-the-badge&color=43b581" alt="Total Downloads">
+  <a href="https://github.com/skonester/heapseed/stargazers">
+    <img src="https://img.shields.io/github/stars/skonester/heapseed?style=for-the-badge&color=7289da&label=stars" alt="Stars">
   </a>
   <a href="https://github.com/skonester/heapseed/releases/latest">
     <img src="https://img.shields.io/badge/Download-Latest%20Release-blue?style=for-the-badge" alt="Download Latest Release">
@@ -18,17 +18,26 @@ A high-performance, open-source BitTorrent client engineered for real-time MP4 v
   <img src="build/icon.png" alt="HeapSeed Logo" width="128">
 </p>
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [Downloads & Releases](#downloads--releases)
+- [Testing Playback](#testing-playback)
+- [Cloud Building](#cloud-building-no-local-terminal-needed)
+- [Local Development](#local-development)
+
 ## Overview
 
 HeapSeed leverages sequential piece prioritization and optimized data piping to enable watching MP4 videos while they download. The integrated Plyr player hooks directly into the WebTorrent read stream, eliminating the need for a full download before playback begins.
 
 ## Key Features
 
-- **Sequential Piece Prioritization** – Prioritizes metadata/moov atoms (beginning/end of MP4) followed by sequential blocks for continuous streaming
-- **Zero-Wait Playback** – Integrated Plyr player hooks directly into the WebTorrent read stream
-- **Backend Buffer Optimization** – Reduced stuttering and memory overhead during high-bitrate playback
-- **Modern Svelte 5 Front-End** – Clean, high-contrast dashboard optimized for real-time streaming management
-- **Cross-Platform Setup** – Windows NSIS Installer, Portable executable, and Linux AppImage/DEB/RPM packages
+- **Sequential Piece Prioritization** -- Prioritizes metadata/moov atoms (beginning/end of MP4) followed by sequential blocks for continuous streaming
+- **Zero-Wait Playback** -- Integrated Plyr player hooks directly into the WebTorrent read stream
+- **Backend Buffer Optimization** -- Reduced stuttering and memory overhead during high-bitrate playback
+- **Modern Svelte 5 Front-End** -- Clean, high-contrast dashboard optimized for real-time streaming management
+- **Cross-Platform Setup** -- Windows NSIS Installer, Portable executable, and Linux AppImage/DEB/RPM packages
 
 ## Downloads & Releases
 
@@ -37,7 +46,7 @@ HeapSeed leverages sequential piece prioritization and optimized data piping to 
 | **Windows** | NSIS Installer (`.exe`) or Portable (`.exe`) |
 | **Linux** | AppImage, DEB, and RPM packages |
 
-📥 [View latest releases on GitHub](https://github.com/skonester/heapseed/releases/latest)
+[View latest releases on GitHub](https://github.com/skonester/heapseed/releases/latest)
 
 ## Testing Playback
 
@@ -51,7 +60,7 @@ Generate the latest installers automatically using GitHub Actions:
 2. Select **Cloud Build & Release** in the left sidebar
 3. Click the **Run workflow** dropdown and select **Run workflow**
 4. Keep the branch as `main`
-5. Wait 3–5 minutes – compiled binaries will be uploaded as draft releases
+5. Wait 3-5 minutes -- compiled binaries will be uploaded as draft releases
 
 ## Local Development
 
