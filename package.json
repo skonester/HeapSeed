@@ -1,7 +1,7 @@
 {
   "name": "HeapSeed",
   "productName": "HeapSeed",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "HeapSeed Network Application",
   "author": {
     "name": "skonester",
@@ -17,7 +17,8 @@
     "clean": "rimraf dist",
     "build:renderer": "vite build",
     "build:linux": "npm run build:renderer && npm run clean && electron-builder --linux AppImage --x64",
-    "build": "npm run build:renderer && npm run clean && electron-builder --win nsis portable --x64"
+    "build": "npm run build:renderer && npm run clean && electron-builder --win nsis portable --x64",
+    "test": "node --test test/*.test.js"
   },
   "build": {
     "appId": "com.skonester.heapseed",
@@ -37,6 +38,23 @@
         "provider": "github",
         "owner": "skonester",
         "repo": "heapseed"
+      }
+    ],
+    "fileAssociations": [
+      {
+        "ext": "torrent",
+        "name": "BitTorrent file",
+        "description": "BitTorrent file",
+        "mimeType": "application/x-bittorrent",
+        "role": "Viewer"
+      }
+    ],
+    "protocols": [
+      {
+        "name": "Magnet link",
+        "schemes": [
+          "magnet"
+        ]
       }
     ],
     "win": {

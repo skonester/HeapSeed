@@ -16,7 +16,18 @@ contextBridge.exposeInMainWorld('api', {
   showTorrentOptions: (torrentData, coords) => ipcRenderer.send('show-torrent-options', torrentData, coords),
   openTorrent: (torrentData) => ipcRenderer.send('open-torrent', torrentData),
   setAppearance: (appearance) => ipcRenderer.send('set-appearance', appearance),
-  
+
+  // --- SETTINGS ---
+  getSettings: () => ipcRenderer.invoke('settings:get'),
+  setSettings: (patch) => ipcRenderer.invoke('settings:set', patch),
+  pickFolder: () => ipcRenderer.invoke('settings:pick-folder'),
+  registerDefaultHandler: () => ipcRenderer.invoke('handler:register'),
+
+  // --- FILE CHOICE & REMOVAL ---
+  selectFiles: (infoHash, selected) => ipcRenderer.invoke('torrent:select', infoHash, selected),
+  cancelPick: (infoHash) => ipcRenderer.invoke('torrent:cancel-pick', infoHash),
+  removeTorrents: (infoHashes, options) => ipcRenderer.invoke('torrent:remove', infoHashes, options),
+
   readClipboard: () => {
     try { return clipboard.readText(); } catch (e) { return ''; }
   },
@@ -31,5 +42,9 @@ contextBridge.exposeInMainWorld('api', {
   onTorrentError: (cb) => ipcRenderer.on('torrent-error', (e, infoHash, error) => cb({ infoHash, error })),
   onPauseTorrent: (cb) => ipcRenderer.on('pause-torrent', (e, infoHash) => cb(infoHash)),
   onResumeTorrent: (cb) => ipcRenderer.on('resume-torrent', (e, infoHash) => cb(infoHash)),
-  onTorrentDone: (cb) => ipcRenderer.on('torrent-done', (e, infoHash, length) => cb({ infoHash, length }))
+  onTorrentDone: (cb) => ipcRenderer.on('torrent-done', (e, infoHash, length) => cb({ infoHash, length })),
+  onSettings: (cb) => ipcRenderer.on('settings', (e, settings) => cb(settings)),
+  onOpenSettings: (cb) => ipcRenderer.on('open-settings', () => cb()),
+  onPickFiles: (cb) => ipcRenderer.on('pick-files', (e, payload) => cb(payload)),
+  onConfirmRemove: (cb) => ipcRenderer.on('confirm-remove', (e, torrents) => cb(torrents))
 });

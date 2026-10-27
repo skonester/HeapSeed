@@ -4,6 +4,9 @@
   import SearchPane from './components/SearchPane.svelte';
   import Sidebar from './components/Sidebar.svelte';
   import Player from './components/Player.svelte';
+  import SettingsDialog from './components/SettingsDialog.svelte';
+  import RemoveDialog from './components/RemoveDialog.svelte';
+  import FilePicker from './components/FilePicker.svelte';
 
 
   const BYTE_GB = 1073741824;
@@ -46,6 +49,11 @@
   let isDarkMode = true;
   let videoVisible = false;
   let activeStream = { url: '', mime: '', version: 0 };
+  let settingsOpen = false;
+  let removeRequest = [];
+  let pickQueue = [];
+
+  $: currentPick = pickQueue[0] || null;
 
   $: effectiveTheme = themeMode === 'system' ? (isDarkMode ? 'dark' : 'light') : themeMode;
   $: filteredResults = getFilteredResults(allResults, enabledSources, category, sortMode);
@@ -181,6 +189,27 @@
     showCommandMenu = false;
   }
 
+  function openSettings() {
+    settingsOpen = true;
+    showCommandMenu = false;
+  }
+
+  function closeRemove(result) {
+    removeRequest = [];
+    if (!result) return;
+    if (result.error) {
+      message = result.error;
+    } else if (result.failed?.length) {
+      message = `${result.failed.length} file(s) could not be moved and are still on disk.`;
+    } else if (result.moved) {
+      message = `Removed. ${result.moved} file(s) moved to the trash${result.kept ? `, ${result.kept} kept` : ''}.`;
+    }
+  }
+
+  function closePick() {
+    pickQueue = pickQueue.slice(1);
+  }
+
   function openDownloads() {
     getApi().openDownloadsFolder?.();
     showCommandMenu = false;
@@ -266,9 +295,11 @@
     const completionRatio = (progress * 100).toFixed(1);
 
     if (torrent.error && hasMetadata) return `Missing target: ${torrent.error}`;
+    if (torrent.paused && torrent.done && torrent.autoPaused) return 'Finished';
     if (torrent.paused) return torrent.done ? 'Seeding paused' : `Paused at ${completionRatio}%`;
     if (torrent.done) return 'Seeding';
     if (!hasMetadata) return 'Resolving metadata';
+    if (torrent.pickPending) return 'Choose files';
     return `Downloading ${completionRatio}%`;
   }
 
@@ -313,6 +344,7 @@
     });
     api.onRemoveTorrent?.((infoHash) => {
       activeTorrents = activeTorrents.filter((torrent) => torrent.infoHash !== infoHash);
+      pickQueue = pickQueue.filter((pick) => pick.infoHash !== infoHash);
       if (selectedInfoHash === infoHash) selectedInfoHash = activeTorrents[0]?.infoHash || '';
     });
     api.onAddingTorrent?.(() => {
@@ -335,6 +367,16 @@
       patchTorrent(infoHash, { done: true, progress: 1, length });
       message = 'Transfer complete.';
     });
+    api.onOpenSettings?.(() => {
+      settingsOpen = true;
+    });
+    api.onConfirmRemove?.((torrents) => {
+      removeRequest = Array.isArray(torrents) ? torrents : [];
+    });
+    api.onPickFiles?.((request) => {
+      // One pending choice per torrent; the newest request replaces an older one
+      pickQueue = [...pickQueue.filter((pick) => pick.infoHash !== request.infoHash), request];
+    });
 
     return () => {};
   });
@@ -353,6 +395,7 @@
     bind:showCommandMenu
     {pasteFromClipboard}
     {openDownloads}
+    {openSettings}
     {showNativeAppOptions}
     {getApi}
     {formatDataSize}
@@ -408,5 +451,9 @@
       />
     </aside>
   </main>
+
+  <SettingsDialog open={settingsOpen} onclose={() => settingsOpen = false} {getApi} />
+  <RemoveDialog torrents={removeRequest} {platform} onclose={closeRemove} {getApi} />
+  <FilePicker request={currentPick} onclose={closePick} {getApi} {formatDataSize} />
 </div>
 

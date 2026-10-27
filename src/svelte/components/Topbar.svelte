@@ -7,6 +7,7 @@
     showCommandMenu = $bindable(),
     pasteFromClipboard,
     openDownloads,
+    openSettings,
     showNativeAppOptions,
     getApi,
     formatDataSize
@@ -67,6 +68,10 @@
       </button>
       {#if showCommandMenu}
         <div class="command-menu dropdown-glow animate-fade-in">
+          <button type="button" on:click={openSettings} class="dropdown-item">
+            <svg class="menu-item-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M3 17v2h6v-2H3M3 5v2h10V5H3m10 16v-2h8v-2h-8v-2h-2v6h2M7 9v2H3v2h4v2h2V9H7m14 4v-2H11v2h10m-6-4h2V7h4V5h-4V3h-2v6Z"/></svg>
+            Settings
+          </button>
           <button type="button" on:click={pasteFromClipboard} class="dropdown-item">
             <svg class="menu-item-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M19 2h-4.18C14.4.84 13.3 0 12 0S9.6.84 9.18 2H5c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1s-1-.45-1-1s.45-1 1-1zm7 18H5V4h2v3h10V4h2v16z"/></svg>
             Paste Magnet URI
