@@ -32,4 +32,5 @@ Rebuild from this directory with two separate source trees:
   bash ../build-gpl-ffmpeg.sh win32-x64 ../windows-output
 
 FFmpeg's own source files retain their original copyright and license notices.
-HeapSeed application source is separately licensed; see its LICENSE file.
+HeapSeed application source is licensed under GPL-3.0-only; see the repository
+LICENSE file. FFmpeg remains licensed under GPL-2.0-or-later as stated above.

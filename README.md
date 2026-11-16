@@ -109,6 +109,6 @@ checksum stops the build.
 
 Each package includes the corresponding FFmpeg source archive, GPL license,
 manifest, notice, and complete build recipe under `resources/ffmpeg`. Application
-source remains under its existing MIT license. See
+source is licensed under GPL-3.0-only. See
 [the upgrade and codec build notes](docs/electron-and-codecs.md) for rebuilding,
 validation, and dependency audit details.
