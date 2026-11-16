@@ -96,5 +96,7 @@ The smoke check uses an isolated profile and synthetic clipboard, loads the
 actual packaged app and native modules, checks modal clipboard behavior, and
 decodes an H.264/AAC MP4 to completion with software rendering. An optional
 second argument selects another MP4. On a
-headless Linux machine, run it under Xvfb. The root-only sandbox exception is
-limited to this test harness.
+headless Linux machine, run it under Xvfb. On CI, the downloaded development
+runtime's `node_modules/electron/dist/chrome-sandbox` is configured as root:root
+with mode 4755 before testing. The regular-user smoke test uses Chromium's
+sandbox. The root-only sandbox exception is limited to this test harness.

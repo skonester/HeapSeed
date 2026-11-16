@@ -43,6 +43,13 @@ jobs:
       - name: Download Electron Runtime
         run: npx --no-install install-electron
 
+      - name: Configure Linux Sandbox Helper
+        if: matrix.os == 'ubuntu-24.04'
+        run: |
+          sudo chown root:root node_modules/electron/dist/chrome-sandbox
+          sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
+          stat --format='%U:%G %a %n' node_modules/electron/dist/chrome-sandbox
+
       - name: Verify GPL FFmpeg and Prepare Corresponding Source
         run: npm run codecs:prepare
 
