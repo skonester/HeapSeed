@@ -259,11 +259,15 @@
     showCommandMenu = false;
   }
 
-  function pasteFromClipboard() {
-    const text = getApi().readClipboard?.()?.trim();
-    if (!text) return;
-    query = text;
-    focusSearch();
+  async function pasteFromClipboard() {
+    try {
+      const text = (await getApi().readClipboard?.() || '').trim();
+      if (!text) return;
+      query = text;
+      focusSearch();
+    } catch {
+      showToast('Unable to read the clipboard.', 'error');
+    }
   }
 
   function initiatePayload(magnet) {

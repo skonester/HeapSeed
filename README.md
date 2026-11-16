@@ -73,18 +73,42 @@ Generate the latest installers automatically using GitHub Actions:
 
 ### Prerequisites
 
-- **Node.js** v20 or later
-- **Windows:** Visual Studio Build Tools 2022 (with "Desktop development with C++" for native dependencies)
+- **Node.js** v24 or later (CI uses Node 24 LTS)
+- **Windows:** x64 Windows 10 or later
+- **Linux:** x64 with glibc 2.35 or later (for example Ubuntu 22.04+)
+- Native dependencies use Node-API prebuilds, verified with `npm run test:electron`.
 
 ### Available Scripts
 
 ```bash
 # Install dependencies
-npm install
+npm ci
+
+# Verify the GPL codec libraries and cache their corresponding source
+npm run codecs:prepare
 
 # Run the app in development mode
 npm start
 
 # Build Windows installer and portable packages
 npm run build
+
+# Run backend tests with Node and with Electron's bundled Node
+npm test
+npm run test:electron
 ```
+
+### Electron and GPL FFmpeg
+
+HeapSeed pins Electron 45.3.2 and ships custom **GPL-2.0-or-later** FFmpeg
+libraries for Windows x64 and Linux x64. Both are built from Electron's exact
+Chromium FFmpeg revision, with H.264/AAC decoding enabled. Development startup
+and packaging overwrite Electron's stock library with the verified GPL build.
+An Electron version mismatch, unsupported architecture, or incorrect library
+checksum stops the build.
+
+Each package includes the corresponding FFmpeg source archive, GPL license,
+manifest, notice, and complete build recipe under `resources/ffmpeg`. Application
+source remains under its existing MIT license. See
+[the upgrade and codec build notes](docs/electron-and-codecs.md) for rebuilding,
+validation, and dependency audit details.

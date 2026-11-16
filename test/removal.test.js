@@ -94,7 +94,7 @@ test('a file reached through a linked folder is kept', (t) => {
     }
     const { targets } = planRemoval({ root, files: ['Show/precious.txt'] })
     assert.deepStrictEqual(targets, [])
-    fs.rmSync(path.join(root, 'Show'))
+    fs.unlinkSync(path.join(root, 'Show'))
     fs.rmSync(elsewhere, { recursive: true })
     fs.rmSync(root, { recursive: true })
 })

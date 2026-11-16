@@ -1,0 +1,6 @@
+*.sh text eol=lf
+*.dll binary
+*.so binary
+*.mp4 binary
+# Minified output can contain significant whitespace inside template strings.
+src/view/assets/* -whitespace

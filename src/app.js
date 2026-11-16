@@ -410,6 +410,11 @@ ipcMain.handle('settings:pick-folder', async () => {
 
 ipcMain.handle('handler:register', () => association.registerAsHandler())
 
+// Clipboard access lives in the main process; Electron 44+ reads asynchronously.
+ipcMain.handle('clipboard:read-text', async () => {
+    try { return await clipboard.readText() } catch { return '' }
+})
+
 /** =========================================================
  * ADDING TORRENTS & CHOOSING FILES
  * =========================================================
@@ -1008,11 +1013,11 @@ function createTorrentOptionsMenu({ infoHash }, point) {
             { type: 'separator' },
             {
                 label: 'Copy Magnet URL',
-                click: () => clipboard.writeText(torrent.magnetURI)
+                click: () => clipboard.writeText(torrent.magnetURI).catch(onError)
             },
             {
                 label: 'Copy Info Hash',
-                click: () => clipboard.writeText(torrent.infoHash)
+                click: () => clipboard.writeText(torrent.infoHash).catch(onError)
             }
         ] : [
             { label: 'Delete torrent', click: () => console.log('Delete from list') }

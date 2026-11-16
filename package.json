@@ -1,37 +1,50 @@
 {
   "name": "HeapSeed",
   "productName": "HeapSeed",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "HeapSeed Network Application",
   "author": {
     "name": "skonester",
     "email": "admin@skonester.com"
   },
   "main": "boot.js",
+  "license": "MIT",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "overrides": {
+    "bittorrent-tracker": {
+      "ip": "npm:@webpod/ip@0.6.1"
+    },
+    "minimatch@>=7.0.0 <11.0.1": "11.0.8"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/skonester/heapseed.git"
   },
   "scripts": {
-    "start": "set ELECTRON_RUN_AS_NODE=&& npm run build:renderer && electron .",
+    "start": "npm run build:renderer && node scripts/start.js",
+    "codecs:prepare": "node scripts/codecs.js",
     "clean": "rimraf dist",
     "build:renderer": "vite build",
     "build:linux": "npm run build:renderer && npm run clean && electron-builder --linux AppImage --x64",
     "build": "npm run build:renderer && npm run clean && electron-builder --win nsis portable --x64",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "test:electron": "node scripts/test-electron.js",
+    "test:smoke": "node scripts/smoke-electron.js"
   },
   "build": {
     "appId": "com.skonester.heapseed",
     "afterPack": "./scripts/fix-codecs.js",
     "asar": true,
-    "asarUnpack": [
-      "build-assets/**"
-    ],
-    "extraResources": [
-      {
-        "from": "build-assets/libffmpeg.so",
-        "to": "lib/libffmpeg.so"
-      }
+    "npmRebuild": false,
+    "files": [
+      "boot.js",
+      "main.js",
+      "torrentSearch.js",
+      "src/**",
+      "package.json",
+      "!src/svelte/**"
     ],
     "publish": [
       {
@@ -80,20 +93,20 @@
     }
   },
   "dependencies": {
-    "axios": "^1.14.0",
+    "axios": "1.21.1",
     "cheerio": "^1.2.0",
-    "electron-updater": "^6.7.0",
-    "plyr": "^3.7.8",
+    "electron-updater": "6.8.11",
+    "plyr": "3.8.5",
     "sound-play": "^1.1.0",
-    "trash": "^8.1.1",
-    "webtorrent": "^2.1.21"
+    "trash": "10.1.1",
+    "webtorrent": "3.0.21"
   },
   "devDependencies": {
-    "@sveltejs/vite-plugin-svelte": "^4.0.4",
-    "electron": "^32.3.3",
-    "electron-builder": "^24.13.3",
-    "rimraf": "^6.1.3",
-    "svelte": "^5.38.0",
-    "vite": "^5.4.19"
+    "@sveltejs/vite-plugin-svelte": "7.3.1",
+    "electron": "45.3.2",
+    "electron-builder": "26.18.0",
+    "rimraf": "6.1.4",
+    "svelte": "5.57.3",
+    "vite": "8.3.8"
   }
 }

@@ -1,0 +1,22 @@
+{
+  "electron": "45.3.2",
+  "chromium": "156.0.8078.100",
+  "license": "GPL-2.0-or-later",
+  "ffmpegRevision": "9db86ce5b5b454dfc96c435f9f0723012980c37f",
+  "recipeSha256": "4ecfa993dcef4b5b5f969f430e119aa271d4e7c7968a8273a7755143efbb0665",
+  "source": {
+    "url": "https://chromium.googlesource.com/chromium/third_party/ffmpeg/+archive/9db86ce5b5b454dfc96c435f9f0723012980c37f.tar.gz",
+    "sha256": "5b2e1884e9eafcd0f2a303e1b1dda416ff88ee2a8ac9d48a9c24ee387c0b6a2d"
+  },
+  "targets": {
+    "linux-x64": {
+      "file": "libffmpeg.so",
+      "sha256": "b7cb07129d487fd22c79bb3461f597c32a9ea070dc66b6bbd7482cf038a6a7ef",
+      "minimumGlibc": "2.35"
+    },
+    "win32-x64": {
+      "file": "ffmpeg.dll",
+      "sha256": "193228ed76ba5e73133a02e98c261f13516dd8e0c4fb2d79c212577f09a4950e"
+    }
+  }
+}

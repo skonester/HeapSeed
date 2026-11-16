@@ -113,7 +113,7 @@ npm run build:linux      → electron-builder --linux (AppImage, DEB, RPM)
 - Linux: AppImage, DEB, and RPM packages
 - `afterPack` script: `./scripts/fix-codecs.js`
 - `asar` packing with `build-assets/**` unpacked
-- Extra resources: `build-assets/libffmpeg.so`
+- Versioned GPL FFmpeg replacements for Windows/Linux x64, with source and license in `resources/ffmpeg`
 
 ---
 
@@ -129,8 +129,8 @@ npm run build:linux      → electron-builder --linux (AppImage, DEB, RPM)
 
 ## Prerequisites
 
-- **Node.js** v20 or later
-- **Windows:** Visual Studio Build Tools 2022 (with "Desktop development with C++")
+- **Node.js** v24 or later (Node 24 LTS in CI)
+- **Native modules:** Node-API prebuilds, tested with both Node and Electron
 - **Cross-platform:** Node.js environment for build scripts
 
 ---
@@ -138,7 +138,7 @@ npm run build:linux      → electron-builder --linux (AppImage, DEB, RPM)
 ## Development Commands
 
 ```bash
-npm install          # Install dependencies
+npm ci               # Install locked dependencies
 npm start            # Run in development mode (electron .)
 npm run build:renderer  # Build Svelte/Vite frontend
 npm run build        # Build installers (Windows + Linux)

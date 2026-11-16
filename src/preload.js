@@ -1,5 +1,5 @@
 // src/preload.js
-const { contextBridge, ipcRenderer, clipboard } = require('electron');
+const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
   // --- SEARCH ENGINE SUPPORT ---
@@ -28,9 +28,7 @@ contextBridge.exposeInMainWorld('api', {
   cancelPick: (infoHash) => ipcRenderer.invoke('torrent:cancel-pick', infoHash),
   removeTorrents: (infoHashes, options) => ipcRenderer.invoke('torrent:remove', infoHashes, options),
 
-  readClipboard: () => {
-    try { return clipboard.readText(); } catch (e) { return ''; }
-  },
+  readClipboard: () => ipcRenderer.invoke('clipboard:read-text'),
 
   // --- EVENT LISTENERS ---
   onPlatform: (cb) => ipcRenderer.on('platform', (e, osPlatform, isDarkMode, appearance) => cb({ osPlatform, isDarkMode, appearance })),

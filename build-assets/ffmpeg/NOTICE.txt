@@ -1,0 +1,35 @@
+HeapSeed bundles a modified FFmpeg library configured with --enable-gpl.
+License: GNU General Public License version 2 or later (GPL-2.0-or-later).
+See COPYING.GPLv2 in this directory and the source archive's license notices.
+
+Upstream: https://ffmpeg.org/
+Chromium fork: https://chromium.googlesource.com/chromium/third_party/ffmpeg/
+Revision: 9db86ce5b5b454dfc96c435f9f0723012980c37f
+Built for Electron 45.3.2 / Chromium 156.0.8078.100, x86-64 only.
+
+The corresponding FFmpeg source archive, manifest, and complete build recipe
+are provided alongside this notice in packaged HeapSeed distributions.
+The recipe changes the native Opus decoder name to libopus, matching Chromium's
+codec allowlist, enables GPL, and exports Chromium's FFmpeg component API.
+No nonfree libraries are enabled. H.264/AAC, MP3, FLAC, Vorbis, Opus and PCM
+decoding is enabled. This does not add every codec/container to Chromium.
+
+Build recipe adapted from nwjs-ffmpeg-prebuilt (GPL-2.0), commit:
+b73b2a97a3eafeaffd5207590784c325504c469b
+https://github.com/nwjs-ffmpeg-prebuilt/nwjs-ffmpeg-prebuilt
+
+Build requirements: Linux x86-64, Bash, GNU make, GCC, NASM, and the MinGW-w64
+x86-64 compiler for Windows. Tested using Debian 13 GCC 14 / MinGW-w64 14.
+Linux binary requires glibc 2.35 or newer.
+
+Rebuild from this directory with two separate source trees:
+  mkdir linux-source windows-source
+  tar -xzf source.tar.gz -C linux-source
+  tar -xzf source.tar.gz -C windows-source
+  cd linux-source
+  bash ../build-gpl-ffmpeg.sh linux-x64 ../linux-output
+  cd ../windows-source
+  bash ../build-gpl-ffmpeg.sh win32-x64 ../windows-output
+
+FFmpeg's own source files retain their original copyright and license notices.
+HeapSeed application source is separately licensed; see its LICENSE file.

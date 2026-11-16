@@ -19,38 +19,61 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-24.04, windows-latest]
  
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
  
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           cache: 'npm'
  
       - name: Install System Dependencies (Linux)
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-24.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential rpm fakeroot dpkg libfuse2
+          sudo apt-get install -y build-essential rpm fakeroot dpkg libfuse2t64 xvfb libnss3 libgtk-3-0t64 libasound2t64
  
       - name: Install Node Dependencies
-        run: npm install
+        run: npm ci
+
+      - name: Download Electron Runtime
+        run: npx --no-install install-electron
+
+      - name: Verify GPL FFmpeg and Prepare Corresponding Source
+        run: npm run codecs:prepare
+
+      - name: Test
+        run: npm test && npm run test:electron
 
       - name: Build Renderer
         run: npm run build:renderer
+
+      - name: Package for Smoke Test
+        run: npx electron-builder --dir --x64 --publish never --config.directories.output=.cache/smoke-package
+
+      - name: Test Packaged App and GPL Playback (Windows)
+        if: matrix.os == 'windows-latest'
+        run: npm run test:smoke -- .cache/smoke-package/win-unpacked/resources/app.asar
+
+      - name: Test Packaged App and GPL Playback (Linux)
+        if: matrix.os == 'ubuntu-24.04'
+        run: xvfb-run -a npm run test:smoke -- .cache/smoke-package/linux-unpacked/resources/app.asar
+
+      - name: Match Existing GitHub Release Status
+        run: node scripts/prepare-release.js
  
       - name: Build and Publish Windows
         if: matrix.os == 'windows-latest'
-        run: npx electron-builder --win --x64 --publish always
+        run: npx electron-builder --config .cache/release-config.json --win --x64 --publish always
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
  
       - name: Build and Publish Linux
-        if: matrix.os == 'ubuntu-latest'
-        run: npx electron-builder --linux --x64 --publish always
+        if: matrix.os == 'ubuntu-24.04'
+        run: npx electron-builder --config .cache/release-config.json --linux --x64 --publish always
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

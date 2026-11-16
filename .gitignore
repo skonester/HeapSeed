@@ -3,3 +3,4 @@
 electron-builder.env
 dist
 node_modules
+.cache/

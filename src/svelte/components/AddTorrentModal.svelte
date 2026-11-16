@@ -10,29 +10,35 @@
 
   let inputUri = $state('');
   let validationError = $state('');
+  let inputRevision = 0;
 
   $effect(() => {
-    if (open) {
-      validationError = '';
-      // Attempt auto-fill if clipboard has a magnet URI
+    inputRevision += 1;
+    if (!open) return;
+    let cancelled = false;
+    const revision = inputRevision;
+    validationError = '';
+    inputUri = '';
+    // Do not overwrite typing or a later modal opening when an async read resolves.
+    (async () => {
       try {
-        const clip = (readClipboard() || '').trim();
-        if (isTorrentIdentifier(clip)) {
-          inputUri = clip;
-        } else {
-          inputUri = '';
-        }
-      } catch (e) {
-        inputUri = '';
-      }
-    }
+        const clip = (await readClipboard() || '').trim();
+        if (!cancelled && inputRevision === revision && isTorrentIdentifier(clip)) inputUri = clip;
+      } catch { /* Auto-fill is optional. */ }
+    })();
+    return () => { cancelled = true; };
   });
 
-  function handlePasteClipboard() {
-    const text = (readClipboard() || '').trim();
-    if (text) {
-      inputUri = text;
-      validationError = '';
+  async function handlePasteClipboard() {
+    const revision = ++inputRevision;
+    try {
+      const text = (await readClipboard() || '').trim();
+      if (open && inputRevision === revision && text) {
+        inputUri = text;
+        validationError = '';
+      }
+    } catch {
+      if (open && inputRevision === revision) validationError = 'Unable to read the clipboard.';
     }
   }
 
@@ -72,6 +78,7 @@
       <div class="input-glow-frame">
         <textarea
           bind:value={inputUri}
+          oninput={() => { inputRevision += 1; }}
           placeholder="magnet:?xt=urn:btih:... or https://example.com/file.torrent"
           rows="4"
           class="payload-textarea"
@@ -90,7 +97,7 @@
           Paste from Clipboard
         </button>
         {#if inputUri}
-          <button type="button" class="helper-btn text-muted" onclick={() => inputUri = ''}>Clear</button>
+          <button type="button" class="helper-btn text-muted" onclick={() => { inputRevision += 1; inputUri = ''; }}>Clear</button>
         {/if}
       </div>
     </div>
