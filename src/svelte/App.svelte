@@ -1,8 +1,12 @@
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import Topbar from './components/Topbar.svelte';
   import SearchPane from './components/SearchPane.svelte';
-  import Sidebar from './components/Sidebar.svelte';
+  import NavRail from './components/NavRail.svelte';
+  import TransfersHub from './components/TransfersHub.svelte';
+  import TelemetryHub from './components/TelemetryHub.svelte';
+  import AddTorrentModal from './components/AddTorrentModal.svelte';
+  import Toast from './components/Toast.svelte';
   import Player from './components/Player.svelte';
   import SettingsDialog from './components/SettingsDialog.svelte';
   import RemoveDialog from './components/RemoveDialog.svelte';
@@ -52,6 +56,14 @@
   let settingsOpen = false;
   let removeRequest = [];
   let pickQueue = [];
+  let activeView = 'transfers';
+  let addModalOpen = false;
+  let searchPane;
+  let downSpeedHistory = [];
+  let upSpeedHistory = [];
+  let toastMessage = '';
+  let toastType = 'info';
+  let toastTimer;
 
   $: currentPick = pickQueue[0] || null;
 
@@ -63,6 +75,39 @@
 
   function getApi() {
     return window.api || {};
+  }
+
+  function setview(view) {
+    activeView = view;
+    showCommandMenu = false;
+    showHistoryMenu = false;
+  }
+
+  async function focusSearch() {
+    setview('search');
+    await tick();
+    searchPane?.focusInput();
+  }
+
+  function openAddModal() {
+    showCommandMenu = false;
+    addModalOpen = true;
+  }
+
+  function showToast(text, type = 'info') {
+    clearTimeout(toastTimer);
+    toastMessage = text;
+    toastType = type;
+    toastTimer = setTimeout(() => toastMessage = '', 6000);
+  }
+
+  function handleShortcut(event) {
+    if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+    if (settingsOpen || addModalOpen || removeRequest.length || currentPick) return;
+    if (event.key.toLowerCase() === 'k') {
+      event.preventDefault();
+      focusSearch();
+    }
   }
 
   function getFilteredResults(results, enabled, selectedCategory, selectedSort) {
@@ -125,10 +170,9 @@
     const input = query.trim();
     if (!input) return;
 
-    if (input.startsWith('magnet:') || (input.startsWith('http') && input.includes('.torrent'))) {
-      getApi().addTorrent?.(input);
+    if (input.startsWith('magnet:') || (/^https?:\/\//i.test(input) && input.toLowerCase().includes('.torrent')) || /^[0-9a-fA-F]{40}$/.test(input)) {
+      initiatePayload(input);
       query = '';
-      message = 'Adding torrent from URI...';
       return;
     }
 
@@ -219,20 +263,29 @@
     const text = getApi().readClipboard?.()?.trim();
     if (!text) return;
     query = text;
-    showCommandMenu = false;
+    focusSearch();
   }
 
   function initiatePayload(magnet) {
     getApi().addTorrent?.(magnet);
-    message = 'Adding selected payload...';
+    message = 'Adding transfer...';
+    setview('transfers');
   }
 
   async function copyMagnet(magnet) {
-    await navigator.clipboard.writeText(magnet);
+    try {
+      await navigator.clipboard.writeText(magnet);
+      showToast('Magnet link copied.', 'success');
+    } catch {
+      showToast('Unable to copy the magnet link.', 'error');
+    }
   }
 
   function openTorrent(torrent) {
-    if (torrent) getApi().openTorrent?.(torrent);
+    if (torrent) {
+      selectedInfoHash = torrent.infoHash;
+      getApi().openTorrent?.(torrent);
+    }
   }
 
   function patchTorrent(infoHash, updates) {
@@ -334,6 +387,7 @@
     api.onStartPlyrStream?.(({ streamUrl, mimeType }) => {
       videoVisible = true;
       activeStream = { url: streamUrl, mime: mimeType, version: activeStream.version + 1 };
+      setview('player');
     });
     api.onUpdateTorrents?.((torrents) => {
       activeTorrents = Array.isArray(torrents) ? torrents : [];
@@ -355,6 +409,7 @@
     });
     api.onTorrentError?.(({ infoHash, error }) => {
       message = error || 'Torrent failed.';
+      showToast(message, 'error');
       patchTorrent(infoHash, { error: error || 'Torrent failed' });
     });
     api.onPauseTorrent?.((infoHash) => {
@@ -366,6 +421,7 @@
     api.onTorrentDone?.(({ infoHash, length }) => {
       patchTorrent(infoHash, { done: true, progress: 1, length });
       message = 'Transfer complete.';
+      showToast(message, 'success');
     });
     api.onOpenSettings?.(() => {
       settingsOpen = true;
@@ -378,13 +434,23 @@
       pickQueue = [...pickQueue.filter((pick) => pick.infoHash !== request.infoHash), request];
     });
 
-    return () => {};
+    const sampleBandwidth = setInterval(() => {
+      downSpeedHistory = [...downSpeedHistory.slice(-59), transferStats.downSpeed];
+      upSpeedHistory = [...upSpeedHistory.slice(-59), transferStats.upSpeed];
+    }, 1000);
+
+    return () => {
+      clearInterval(sampleBandwidth);
+      clearTimeout(toastTimer);
+    };
   });
 </script>
 
 <svelte:head>
   <title>HeapSeed</title>
 </svelte:head>
+
+<svelte:window onkeydown={handleShortcut} />
 
 <div class="app-shell" data-theme={effectiveTheme}>
   <Topbar
@@ -399,10 +465,46 @@
     {showNativeAppOptions}
     {getApi}
     {formatDataSize}
+    {openAddModal}
+    {focusSearch}
+    {downSpeedHistory}
+    {upSpeedHistory}
   />
 
-  <main class="workspace">
+  <div class="app-content">
+    <NavRail
+      {activeView}
+      {setview}
+      {transferStats}
+      {videoVisible}
+      {openAddModal}
+      {openDownloads}
+      {openSettings}
+    />
+
+    <main class="view-workspace" aria-label="{activeView} workspace">
+      <div class="view-panel" hidden={activeView !== 'transfers'}>
+        <TransfersHub
+          {activeTorrents}
+          bind:selectedInfoHash
+          {selectedTorrent}
+          {message}
+          {formatDataSize}
+          {openDownloads}
+          {openTorrent}
+          {showTorrentOptions}
+          {torrentTone}
+          {torrentStatus}
+          {torrentDetail}
+          {openAddModal}
+          {setview}
+          {getApi}
+        />
+      </div>
+
+      <div class="view-panel" hidden={activeView !== 'search'}>
     <SearchPane
+      bind:this={searchPane}
       bind:query
       bind:showHistoryMenu
       {searchHistory}
@@ -426,34 +528,36 @@
       {initiatePayload}
       {copyMagnet}
     />
+      </div>
 
-    <aside class="activity-pane">
+      <div class="view-panel" hidden={activeView !== 'player'}>
       <Player
         bind:videoVisible
         {selectedTorrent}
         {openTorrent}
         {activeStream}
+        {formatDataSize}
       />
+      </div>
 
-      <Sidebar
+      <div class="view-panel" hidden={activeView !== 'telemetry'}>
+      <TelemetryHub
         {transferStats}
         {activeTorrents}
-        bind:selectedInfoHash
         {selectedTorrent}
-        {message}
         {formatDataSize}
-        {openDownloads}
         {openTorrent}
-        {showTorrentOptions}
-        {torrentTone}
-        {torrentStatus}
-        {torrentDetail}
+        {downSpeedHistory}
+        {upSpeedHistory}
       />
-    </aside>
-  </main>
+      </div>
+    </main>
+  </div>
 
+  <AddTorrentModal open={addModalOpen} onclose={() => addModalOpen = false} onadd={initiatePayload} readClipboard={() => getApi().readClipboard?.() || ''} />
   <SettingsDialog open={settingsOpen} onclose={() => settingsOpen = false} {getApi} />
   <RemoveDialog torrents={removeRequest} {platform} onclose={closeRemove} {getApi} />
   <FilePicker request={currentPick} onclose={closePick} {getApi} {formatDataSize} />
+  <Toast message={toastMessage} type={toastType} visible={!!toastMessage} onclose={() => toastMessage = ''} />
 </div>
 

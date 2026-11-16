@@ -39,6 +39,9 @@ jobs:
  
       - name: Install Node Dependencies
         run: npm install
+
+      - name: Build Renderer
+        run: npm run build:renderer
  
       - name: Build and Publish Windows
         if: matrix.os == 'windows-latest'
