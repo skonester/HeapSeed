@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const { verifySourceArchive } = require('./source-integrity');
 
 const projectDir = path.resolve(__dirname, '..');
 const codecDir = path.join(projectDir, 'build-assets', 'ffmpeg');
@@ -25,17 +26,29 @@ function checkedLibrary(platform, arch, electronVersion) {
   return { config, entry, file, target };
 }
 
-async function prepareSource() {
+async function prepareSource({ cacheDir = path.join(projectDir, '.cache', 'ffmpeg'), request = fetch } = {}) {
   const config = manifest();
-  const file = path.join(projectDir, '.cache', 'ffmpeg', 'source.tar.gz');
-  if (fs.existsSync(file) && sha256(file) === config.source.sha256) return file;
+  const file = path.join(cacheDir, 'source.tar.gz');
+  if (fs.existsSync(file)) {
+    try {
+      await verifySourceArchive(file, config.source.treeSha256);
+      return file;
+    } catch {
+      console.warn('Cached FFmpeg source failed verification; downloading the pinned revision again.');
+    }
+  }
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  const response = await fetch(config.source.url, { signal: AbortSignal.timeout(120000) });
+  const response = await request(config.source.url, { signal: AbortSignal.timeout(120000) });
   if (!response.ok) throw new Error(`FFmpeg source download failed: ${response.status}`);
   const bytes = Buffer.from(await response.arrayBuffer());
-  const hash = crypto.createHash('sha256').update(bytes).digest('hex');
-  if (hash !== config.source.sha256) throw new Error('FFmpeg source checksum mismatch');
-  fs.writeFileSync(file, bytes);
+  await verifySourceArchive(bytes, config.source.treeSha256);
+  const temporary = `${file}.${crypto.randomUUID()}.tmp`;
+  try {
+    fs.writeFileSync(temporary, bytes);
+    fs.renameSync(temporary, file);
+  } finally {
+    if (fs.existsSync(temporary)) fs.unlinkSync(temporary);
+  }
   return file;
 }
 

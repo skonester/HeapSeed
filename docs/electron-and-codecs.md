@@ -41,7 +41,13 @@ or to Electron's stock LGPL library.
 
 The source archive is cached in `.cache/ffmpeg/source.tar.gz`; run
 `npm run codecs:prepare` before an offline build. The archive is downloaded from
-the pinned Chromium source URL and checked against the manifest digest.
+the pinned Chromium source URL and checked against `source.treeSha256` in the
+manifest. This SHA-256 covers sorted entry paths, types, permissions, link
+targets, and file contents. Gitiles regenerates archive timestamps on each
+download, so a digest of the compressed archive itself is not stable. Archive
+timestamps, ownership, entry order, and compression metadata are excluded from
+the content digest. Changed source files or permissions still fail verification;
+the DLL/SO binaries retain their exact byte-for-byte SHA-256 checks.
 
 ## Rebuilding
 

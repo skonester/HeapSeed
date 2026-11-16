@@ -6,7 +6,7 @@
   "recipeSha256": "4ecfa993dcef4b5b5f969f430e119aa271d4e7c7968a8273a7755143efbb0665",
   "source": {
     "url": "https://chromium.googlesource.com/chromium/third_party/ffmpeg/+archive/9db86ce5b5b454dfc96c435f9f0723012980c37f.tar.gz",
-    "sha256": "5b2e1884e9eafcd0f2a303e1b1dda416ff88ee2a8ac9d48a9c24ee387c0b6a2d"
+    "treeSha256": "1eb25fabd65f2bd37cbb956314ebc6a78d7fdae189cf3a7622524201b58ddba2"
   },
   "targets": {
     "linux-x64": {
