@@ -67,7 +67,7 @@ Generate the latest installers automatically using GitHub Actions:
 2. Select **Cloud Build & Release** in the left sidebar
 3. Click the **Run workflow** dropdown and select **Run workflow**
 4. Keep the branch as `main`
-5. Wait 3-5 minutes -- compiled binaries will be uploaded as draft releases
+5. Both platform builds finish, then all packages are uploaded to one regular release
 
 ## Local Development
 

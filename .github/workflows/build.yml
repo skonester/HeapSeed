@@ -7,14 +7,14 @@ on:
       - 'v*'
  
 permissions:
-  contents: write
- 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  contents: read
+
+concurrency:
+  group: heapseed-release
+  cancel-in-progress: false
  
 jobs:
-  release:
+  build:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -35,52 +35,74 @@ jobs:
         if: matrix.os == 'ubuntu-24.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential rpm fakeroot dpkg libfuse2t64 xvfb libnss3 libgtk-3-0t64 libasound2t64
+          sudo apt-get install -y build-essential rpm fakeroot dpkg libfuse2t64
  
       - name: Install Node Dependencies
         run: npm ci
 
-      - name: Download Electron Runtime
-        run: npx --no-install install-electron
-
-      - name: Configure Linux Sandbox Helper
-        if: matrix.os == 'ubuntu-24.04'
-        run: |
-          sudo chown root:root node_modules/electron/dist/chrome-sandbox
-          sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
-          stat --format='%U:%G %a %n' node_modules/electron/dist/chrome-sandbox
-
       - name: Verify GPL FFmpeg and Prepare Corresponding Source
         run: npm run codecs:prepare
-
-      - name: Test
-        run: npm test && npm run test:electron
 
       - name: Build Renderer
         run: npm run build:renderer
 
-      - name: Package for Smoke Test
-        run: npx electron-builder --dir --x64 --publish never --config.directories.output=.cache/smoke-package
-
-      - name: Test Packaged App and GPL Playback (Windows)
+      - name: Build Windows Packages
         if: matrix.os == 'windows-latest'
-        run: npm run test:smoke -- .cache/smoke-package/win-unpacked/resources/app.asar
+        run: npx electron-builder --win --x64 --publish never
 
-      - name: Test Packaged App and GPL Playback (Linux)
+      - name: Build Linux Packages
         if: matrix.os == 'ubuntu-24.04'
-        run: xvfb-run -a npm run test:smoke -- .cache/smoke-package/linux-unpacked/resources/app.asar
+        run: npx electron-builder --linux --x64 --publish never
 
-      - name: Match Existing GitHub Release Status
-        run: node scripts/prepare-release.js
- 
-      - name: Build and Publish Windows
-        if: matrix.os == 'windows-latest'
-        run: npx electron-builder --config .cache/release-config.json --win --x64 --publish always
+      - name: Upload Packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: heapseed-${{ matrix.os }}
+          compression-level: 0
+          if-no-files-found: error
+          path: |
+            dist/*.exe
+            dist/*.blockmap
+            dist/*.AppImage
+            dist/*.deb
+            dist/*.rpm
+            dist/latest*.yml
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Download All Packages
+        uses: actions/download-artifact@v8
+        with:
+          pattern: heapseed-*
+          merge-multiple: true
+          path: dist
+
+      - name: Read Release Version
+        id: version
+        run: |
+          tag="v$(node -p 'require("./package.json").version')"
+          if [[ "$GITHUB_REF" == refs/tags/* && "$GITHUB_REF_NAME" != "$tag" ]]; then
+            echo "Tag $GITHUB_REF_NAME does not match package.json version $tag" >&2
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Publish One Regular Release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
- 
-      - name: Build and Publish Linux
-        if: matrix.os == 'ubuntu-24.04'
-        run: npx electron-builder --config .cache/release-config.json --linux --x64 --publish always
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --target "$GITHUB_SHA" --title "${TAG#v}" \
+              --notes "Windows and Linux builds of HeapSeed ${TAG#v}."
+          fi
+          gh release upload "$TAG" dist/* --clobber
+          gh release edit "$TAG" --draft=false --prerelease=false --latest

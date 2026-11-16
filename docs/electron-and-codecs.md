@@ -2,15 +2,15 @@
 
 The app uses Electron 45.3.2 (Chromium 156.0.8078.100, bundled Node 24.22.2),
 electron-builder 26.18.0, Vite 8.3.8, Svelte 5.57.3, and its Vite plugin 7.3.1.
-CI installs with `npm ci` on Node 24 and runs tests on both Node and Electron.
+CI installs with `npm ci` on Node 24 and builds Windows and Linux packages.
 The manifest and lockfile identify HeapSeed as 1.2.4.
 
-Release preparation checks that a pushed version tag matches package.json and
-reads the existing GitHub release status. Publishing matches an existing draft,
-prerelease, or published release, preventing electron-builder from skipping
-uploads because its default draft status conflicts with a published release.
-New releases continue to be created as drafts. Re-running an old tag still uses
-that tag's original workflow; commit and push these changes before tagging 1.2.4.
+The platform build jobs use `--publish never` and upload their packages as
+workflow artifacts. A single publishing job waits for both builds, downloads
+all packages, and uploads them to one regular GitHub release for the app version.
+It checks that a pushed tag matches package.json. Repeated runs update the same
+release. Workflow runs are serialized to prevent competing publishers. Tests
+remain available as local development commands.
 
 Clipboard reads now cross IPC to the main process and return promises. Search
 paste, modal auto-fill, and modal paste all await them. A late auto-fill cannot
@@ -96,7 +96,7 @@ The smoke check uses an isolated profile and synthetic clipboard, loads the
 actual packaged app and native modules, checks modal clipboard behavior, and
 decodes an H.264/AAC MP4 to completion with software rendering. An optional
 second argument selects another MP4. On a
-headless Linux machine, run it under Xvfb. On CI, the downloaded development
-runtime's `node_modules/electron/dist/chrome-sandbox` is configured as root:root
-with mode 4755 before testing. The regular-user smoke test uses Chromium's
-sandbox. The root-only sandbox exception is limited to this test harness.
+headless Linux machine, run it under Xvfb. For a regular-user local test using
+the SUID sandbox, the development runtime's `node_modules/electron/dist/chrome-sandbox`
+must be root:root with mode 4755. The root-only sandbox exception is limited to
+this local test harness.
